@@ -1,6 +1,8 @@
 pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, broom)
 options(scipen = 999) # disable scientific notation
 
+# Make a table in this...
+
 # Dataset
 data <- readRDS("/home/santorolab/Desktop/cassia/pendrive_cass_BK/cass_BHRC_28042025_ARTICLE.RDS")
 
@@ -25,61 +27,36 @@ mi <-
 	select(ident, IID) %>%
 	mutate(ident = as.numeric(ident))
 
-cm_prs <-
-	fread("/home/santorolab/Desktop/cassia/pendrive_cass_BK/PRS_database_imputed/PRSCS_CMT_2021_Score.profile") %>%
-	select(ident, PRSCS) %>%
-	inner_join(., mi, by = "ident") %>%
-	select(-ident) %>%
-	inner_join(., select(all_pcs, -PRS), by = "IID") %>%
-	rename(PRS = PRSCS)
-
 # PRS correction
 shapiro.test(all_pcs$PRS)
 new_ADHD <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = all_pcs))
-new_CM <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = cm_prs))
 database <- cbind(select(database, -PRS), PRS_CM = new_CM, PRS_ADHD = new_ADHD)
 
 # Family history
 parents <- data$family_history
 
 # Working data
-# test_CM <-
-# 	inner_join(database, parents, by = "IID") %>%
-# 	select(PRS_CM, starts_with("parent_"))
-
-# test_ADHD <-
-# 	inner_join(database, parents, by = "IID") %>%
-# 	select(PRS_ADHD, starts_with("parent_"))
-
-inner_join(database, parents, by = "IID") %>%
-	mutate(
-		diagnosis = case_when(
-			parent_psych == 1 ~ "psych",
-			parent_mania == 1 ~ "mania",
-			parent_dep == 1 ~ "dep",
-			parent_panic == 1 ~ "panic",
-			parent_adhd == 1 ~ "adhd",
-			parent_alc == 1 ~ "alc",
-			parent_drug == 1 ~ "drug",
-			parent_anx == 1 ~ "anx",
-			.default = no_diagnosis))
-			# falta a comorbidade
+test_ADHD <-
+	inner_join(database, parents, by = "IID") %>%
+	select(PRS_ADHD, starts_with("parent_")) %>%
+	rename(
+		PRS = 1, Mania = 2, Depression = 3,
+		Panic = 4, Psychosis = 5, ADHD = 6,
+		Alcohol_abuse = 7, Drug_abuse = 8, Anxiety = 9)
 
 # PRS load: PRS association testing of groups
 # based on the parent diagnosis
-plot_object <-
+# plot_object <-
 	rbind(
-		glm(PRS_ADHD ~ ., data = test_ADHD, family = "gaussian") %>%
-		tidy(conf.int = TRUE) %>%
-		mutate(phenotype = "ADHD"),
-		glm(PRS_CM ~ ., data = test_CM, family = "gaussian") %>%
-		tidy(conf.int = TRUE) %>%
-		mutate(phenotype = "CM")) %>%
-	filter(!term == "(Intercept)") %>%
-	mutate(
-		term = gsub("parent_", "",  term),
-		term = gsub("1", "",  term),
-		term = toupper(term))
+		glm(PRS ~ ., data = test_ADHD, family = "gaussian") %>%
+		tidy(conf.int = TRUE)) %>%
+	# filter(!term == "(Intercept)") %>%
+	# mutate(
+	# 	term = gsub("_", " ",  term),
+	# 	term = gsub("1", "",  term)) %>%
+
+temp <- report::report_table(glm(PRS ~ ., data = test_ADHD, family = "gaussian"))
+rempsyc::nice_table(temp, highlight = TRUE, report = "lm", short = TRUE)
 
 # Plot
 ggthemr("earth")
@@ -96,12 +73,14 @@ final <-
 			linetype = "dashed",
 			linewidth = 0.2) +
 		geom_col(width = 0.7) +
-		facet_wrap(~ phenotype, nrow = 2) +
+		scale_x_continuous(limits = c(-0.25, 0.25)) +
 		labs(x = "\u03B2 (95% CI)", y = "", fill = "") +
 		theme_publish() +
-		theme(legend.position = "none")
+		theme(
+			legend.position = "none",
+			panel.grid.major.x = element_line(linewidth = 0.2))
 
 # Save plot
 ggsave(
-	"Fig2_panelG.png", device = "png", units = "mm",
-	width = 80, height = 200, bg = "white")
+	"Fig3_panelA.png", device = "png", units = "mm",
+	width = 100, height = 80, bg = "white")
