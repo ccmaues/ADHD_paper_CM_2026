@@ -1,18 +1,29 @@
-# spaguetti plot of RX number per wave
-data <- readRDS("/home/santorolab/Desktop/cassia/pendrive_cass_BK/cass_BHRC_28042025_ARTICLE.RDS")
+pacman::p_load(dplyr, tidyr, ggthemr, envalysis, ggplot2)
+# Survplot for number os diagnosis | cox HR
+data <- readRDS("E:/cass_BHRC_28042025_ARTICLE.RDS")
 
+database <-
+  data$proband_data %>% # latest version
+	mutate(
+		W0 = ifelse(W0 == 2, 1, 0),
+		W1 = ifelse(W1 == 2, 1, 0),
+		W2 = ifelse(W2 == 2, 1, 0))
+
+# Mirror
 mi <-
-	readRDS("/media/santorolab/C207-3566/0_external_files/Lucas_MINI_BHRCS.rds") %>%
+	readRDS("E:/0_external_files/Lucas_MINI_BHRCS.rds") %>%
 	select(ident, IID) %>%
 	mutate(ident = as.numeric(ident))
 
+# ANX phenotype (PGC)
 anx_PGC <-
-	readRDS("/media/santorolab/C207-3566/0_external_files/Santoro_192BHRC_2024_08_17.rds") %>%
+	readRDS("E:/0_external_files/Santoro_192BHRC_2024_08_17.rds") %>%
 	select(ident, dcanyanx_pgc, redcap_event_name) %>%
 	inner_join(mi, by = "ident")
 
+# Unprocessed phenotypes
 phenotype <-
-	readRDS("/media/santorolab/C207-3566/0_external_files/dawba_20200526.rds") %>%
+	readRDS("E:/0_external_files/dawba_20200526.rds") %>%
 	select(-dcanyanx) %>%
 	mutate(subjectid = gsub("^", "C", subjectid)) %>%
 	rename(IID = 1) %>%
@@ -34,25 +45,32 @@ phenotype <-
 	rename(wave = 2) %>%
 	data.frame()
 
+# Diagnosis number
 rx_only <-
-  select(phenotype, IID, wave, rx_number) %>%
-  pivot_wider(names_from = "wave", values_from = "rx_number") %>%
-  rename(rx_W0 = W0, rx_W1 = W1, rx_W2 = W2) %>%
-	filter(IID %in% data$proband_data$IID) %>%
-	pivot_longer(
-		cols = starts_with("rx_W"),
-		names_to = "wave",
-		values_to = "rx") %>%
-	mutate(wave = gsub("rx_", "", wave))
+	select(phenotype, IID, wave, rx_number) %>%
+	mutate(wave = factor(wave, levels = c("W0", "W1", "W2"))) %>%
+	group_by(wave, rx_number) %>%
+	summarise(N = n()) %>%
+	filter(!rx_number == 0)
+str(rx_only)
 
-for_plot <-
-	rx_only %>%
-	group_by(wave, rx) %>%
-	summarise(N = n())
+# Plot
+# make so it is stacked by wave
+ggthemr("grape")
+p1 <-
+	ggplot(rx_only, aes(wave, N, fill = rx_number)) +
+		geom_bar(stat = "identity", position = "dodge") +
+		scale_y_continuous(n.breaks = 20) +
+		theme_publish(base_size = 7) +
+		theme(
+			legend.position = "right",
+			panel.grid.major.x = element_line(
+				linewidth = 0.2,
+				color = "#a1a1a1",
+				linetype = "dashed")) +
+		coord_flip()
 
-ggthemr("fresh")
-ggplot(for_plot, aes(wave, N, color = rx, group = rx)) +
-geom_point() +
-geom_path() +
-scale_y_continuous(n.breaks = 10) +
-theme_publish()
+ggsave(
+  "Fig3_panelA.png", p1, device = "png",
+  width = 150, height = 40, units = c("mm"),
+  dpi = 300, bg = "white")
