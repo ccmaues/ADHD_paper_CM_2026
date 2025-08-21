@@ -153,7 +153,7 @@ final <-
     geom_text(
       aes(y = conf.high + 1, label = stars),
       position = position_dodge(width = 1),
-      vjust = 0.7,
+      vjust = 0.6,
       size = 5,
       show.legend = FALSE,
       angle = 90) +
