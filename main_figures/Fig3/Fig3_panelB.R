@@ -43,7 +43,10 @@ anx_PGC <-
 	select(ident, dcanyanx_pgc, redcap_event_name) %>%
 	inner_join(mi, by = "ident")
 
-# Unprocessed phenotypes
+# Unprocessed phenotypes (includes dcanyhk)
+# Warning message:
+# In coxph.fit(X, Y, istrat, offset, init, control, weights = weights,  :
+#   Loglik converged before variable  1,2 ; coefficient may be infinite.
 phenotype <-
 	readRDS("E:/0_external_files/dawba_20200526.rds") %>%
 	select(-dcanyanx) %>%
@@ -51,7 +54,7 @@ phenotype <-
 	rename(IID = 1) %>%
 	inner_join(anx_PGC, by = c("IID", "redcap_event_name")) %>%
 	select(-ident) %>%
-		select(
+	select(
 		IID, redcap_event_name, dcptsd, dcocd,
 		dcanyanx_pgc, dcmadep, dcanyhk, dcodd,
 		dceat, dcpsych) %>%
