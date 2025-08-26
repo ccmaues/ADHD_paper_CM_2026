@@ -1,7 +1,7 @@
 pacman::p_load(dplyr, data.table, ggplot2, envalysis, tidyr, patchwork, ggsurvfit, survminer, survival)
 
 # https://rpkgs.datanovia.com/survminer/survminer_cheatsheet.pdf
-data <- readRDS("/media/santorolab/C207-3566/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("E:/cass_BHRC_28042025_ARTICLE.RDS")
 database <-
   data$proband_data %>% # latest version
 	mutate(
@@ -14,6 +14,11 @@ all_pcs <-
   data$PCA_all_samples %>%
   inner_join(., select(database, IID, PRS), by = "IID") %>%
   select(-FID)
+
+# Family history
+hist <-
+  data$family_history %>%
+  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
 
 # PRS correction
 shapiro.test(all_pcs$PRS)
@@ -29,7 +34,8 @@ database <-
     percentile = factor(
       percentile,
       levels = c("10th", "else", "90th"))) %>%
-  select(IID, site, W0, W1, W2, age_W0, age_W1, age_W2, percentile, gender, site)
+  inner_join(., select(hist, IID, any_hist), by = "IID") %>%
+  select(IID, site, W0, W1, W2, any_hist, age_W0, age_W1, age_W2, percentile, gender, site)
 
 ## keep controls the same
 without_entry <-
@@ -71,12 +77,12 @@ str(with_entry)
 
 survival_data <-
   rbind(with_entry, without_entry) %>%
-  inner_join(., select(database, IID, site, percentile, gender, site), by = "IID") %>%
+  inner_join(., select(database, IID, any_hist, site, percentile, gender, site), by = "IID") %>%
   filter(gender == "Female") %>%
   select(-IID, -gender) %>%
   data.frame()
 
-cox <- coxph(Surv(time, status) ~ strata(percentile) + site, data = survival_data)
+cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + site, data = survival_data)
 fit <- survfit(cox)
 
 # Event probability
