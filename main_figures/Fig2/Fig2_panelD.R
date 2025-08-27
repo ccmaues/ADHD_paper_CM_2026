@@ -1,6 +1,6 @@
 pacman::p_load(dplyr, data.table, ggthemr, ggplot2, envalysis, broom, survival, tidyr)
 # make HZ col plot  for Overall HZ, 90, 10, 90  w/ family, 10 w/ family, 90 n/family 10 n/family
-data <- readRDS("/media/santorolab/C207-3566/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("E:/cass_BHRC_28042025_ARTICLE.RDS")
 database <-
   data$proband_data %>% # latest version
 	mutate(
