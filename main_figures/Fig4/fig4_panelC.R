@@ -1,1 +1,0 @@
-# PCA normal distribution M (with ancestry loads)
