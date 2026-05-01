@@ -8,9 +8,9 @@ data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 database <-
 	data$proband_data %>% # latest version
 	mutate(
-		W0 = ifelse(W0 == 2, 1, 0),
-		W1 = ifelse(W1 == 2, 1, 0),
-		W2 = ifelse(W2 == 2, 1, 0)) %>%
+		W0 = ifelse(W0 == 2, "Case", "Control"),
+		W1 = ifelse(W1 == 2, "Case", "Control"),
+		W2 = ifelse(W2 == 2, "Case", "Control")) %>%
 	inner_join(., data$PCA_all_samples, by = "IID") %>%
 	mutate(across(c(W0, W1, W2), as.factor))
 
@@ -69,19 +69,33 @@ ggthemr("fresh") # find out which theme I have used b4
 # get all toguether in the same plot so I can use the same scale
 # Panel A:plot 1 (All PRS by case'n'control)
 ggplot(for_plot, aes(x = PRS, fill = W2)) +
-  geom_density(alpha = 0.6) +
+  geom_density(alpha = 0.4, color = NA) +
   geom_vline(
     data = means_df,
     aes(xintercept = mean_PRS, color = W2),
-    linetype = "dashed") +
-  facet_wrap(~group, ncol = 1) +
-  labs(caption = paste(
-    "N = 1,553; F = ",
-    "\nPRS ~ PC1 + PC2 + PC3 + PC4")) +
+    linetype = "dashed",
+		linewidth = 0.3) +
+  facet_wrap(~group, ncol = 1, scales = "free_x") +
+  labs(
+		caption = paste(
+			"N = 1,553; F = 692; M = 861",
+			"\nPRS ~ PC1 + PC2 + PC3 + PC4"),
+		y = "Density") +
 	scale_fill_manual(values = c("#B07AA1", "#E08D3C")) +
 	scale_color_manual(values = c("#B07AA1", "#E08D3C")) +
-  theme_publish()
+	scale_x_continuous(n.breaks = 6) +
+  theme_publish(base_size = 10) +
+	theme(
+		legend.title = element_blank(),
+		panel.grid = element_line(size = 0.2))
 
 #"#A69F98"
-
 # save panel A file
+ggsave(
+	"fig2_panelA.png",
+	device = "png",
+	units = "cm",
+	width = 7,
+	height = 20,
+	dpi = 400,
+	bg = "white")
