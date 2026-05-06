@@ -92,7 +92,7 @@ ggplot(for_plot, aes(x = PRS, fill = W2)) +
 #"#A69F98"
 # save panel A file
 ggsave(
-	"fig2_panelA.png",
+	"fig2_panelAtoC.png",
 	device = "png",
 	units = "cm",
 	width = 7,
