@@ -1,11 +1,11 @@
-# Model performance over time (fem)
+# Model performance over time (man)
 pacman::p_load(dplyr, tidyr, ggthemr, envalysis, ggplot2, nsROC, PRROC, DescTools)
 
 # Article dataset
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 
 # Diagnosis standardtization
-females <-
+males <-
 	data$proband_data %>% # latest version
 	mutate(
 		W0 = ifelse(W0 == 2, 1, 0),
@@ -13,12 +13,12 @@ females <-
 		W2 = ifelse(W2 == 2, 1, 0),
 		across(c(W0, W1, W2), as.numeric)) %>%
 	inner_join(., data$PCA_by_sex, by = "IID") %>%
-	filter(gender == "Female")
+	filter(gender == "Male")
 
 # PCA
 sex_stratified_pcs_F <-
 	data$PCA_by_sex %>%
-	inner_join(., select(females, IID, PRS), by = "IID")
+	inner_join(., select(males, IID, PRS), by = "IID")
 
 # PRS correction
 # shapiro.test(sex_stratified_pcs_F$PRS)
@@ -28,7 +28,7 @@ new_PRS_stratified_fem <-	residuals(glm(
 		data = sex_stratified_pcs_F))
 
 # working dataset
-for_prediction <- cbind(select(females, -PRS), PRS = new_PRS_stratified_fem, group = "all")
+for_prediction <- cbind(select(males, -PRS), PRS = new_PRS_stratified_fem, group = "all")
 
 # Prediction estimate per wave
 for_plot <- data.frame(
@@ -84,7 +84,7 @@ p <-
 
 # save panel A file
 ggsave(
-	"fig3_panelB.png",
+	"fig3_panelC.png",
 	p,
 	device = "png",
 	units = "cm",

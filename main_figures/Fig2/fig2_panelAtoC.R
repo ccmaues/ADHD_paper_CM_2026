@@ -38,13 +38,13 @@ new_PRS <- residuals(glm(
 	data = all_pcs))
 
 # shapiro.test(sex_stratified_pcs_F$PRS)
-new_PRS_stratified_fem <-	residuals(glm(
+new_PRS_stratified_fem <- residuals(glm(
 		PRS ~ PC1 + PC2 + PC3 + PC4,
 		family = "gaussian",
 		data = sex_stratified_pcs_F))
 
 # shapiro.test(sex_stratified_pcs_M$PRS)
-new_PRS_stratified_man <-	residuals(glm(
+new_PRS_stratified_man <- residuals(glm(
 		PRS ~ PC1 + PC2 + PC3 + PC4,
 		family = "gaussian",
 		data = sex_stratified_pcs_M))
