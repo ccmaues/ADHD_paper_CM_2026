@@ -95,7 +95,7 @@ ggplot(or_df, aes(x = strata, y = estimate)) +
 				"6th", "7th", "8th", "9th", "10th")) +
 		theme_publish(base_size = 10) +
 		labs(x = "PRS risk strata", y = "Odds Ratio") +
-		theme(panel.grid = element_line(size = 0.2))
+		theme()
 
 ggsave(
 	"fig2_panelD.png",

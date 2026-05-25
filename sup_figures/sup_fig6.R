@@ -1,7 +1,7 @@
 pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, DescTools)
 
 # Explained variance of diagnosis
-data <- readRDS("/media/santorolab/C207-3566/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 database <- data$proband_data %>% # latest version
 	mutate(
 		W0 = ifelse(W0 == 2, 1, 0),
@@ -27,12 +27,10 @@ all_w0 <- data.frame(
   	PseudoR2(glm(W0 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W0 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W0 ~ PRS + age_W0, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + age_W1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + age_W2, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W0 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W0 + age_W1 + age_W2 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "age_W1", "age_W2", "Sex", "Full model")) %>%
-	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "age_W1", "age_W2", "Sex", "Full model")))
+  	PseudoR2(glm(W0 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W0 + gender, family = "binomial", data = all), which = "Nagelkerke")),
+		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "Sex", "Full model")) %>%
+	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "Sex", "Full model")))
 
 all_w1 <- data.frame(
 		R2 = c(
@@ -41,13 +39,11 @@ all_w1 <- data.frame(
   	PseudoR2(glm(W1 ~ PRS + PC2, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W1 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W1 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + age_W0, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W1 ~ PRS + age_W1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + age_W2, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W1 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W0 + age_W1 + age_W2 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "age_W1", "age_W2", "Sex", "Full model")) %>%
-	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "age_W1", "age_W2", "Sex", "Full model")))
+  	PseudoR2(glm(W1 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W1 + gender, family = "binomial", data = all), which = "Nagelkerke")),
+		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W1", "Sex", "Full model")) %>%
+	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W1", "Sex", "Full model")))
 
 all_w2 <-
 	data.frame(
@@ -57,13 +53,11 @@ all_w2 <-
   	PseudoR2(glm(W2 ~ PRS + PC2, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W2 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W2 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + age_W0, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + age_W1, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W2 ~ PRS + age_W2, family = "binomial", data = all), which = "Nagelkerke"),
   	PseudoR2(glm(W2 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W0 + age_W1 + age_W2 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "age_W1", "age_W2", "Sex", "Full model")) %>%
-	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "age_W1", "age_W2", "Sex", "Full model")))
+  	PseudoR2(glm(W2 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W2 + gender, family = "binomial", data = all), which = "Nagelkerke")),
+		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W2", "Sex", "Full model")) %>%
+	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W2", "Sex", "Full model")))
 
 ggthemr("grape")
 
