@@ -1,65 +1,57 @@
-pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, patchwork)
+pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, broom)
 
-val_10 <- fread("/media/santorolab/C207-3566/PCA_files_cass/cass_final_PCA/all_samples_PCA.eigenval")
+data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+database <- data$proband_data # latest version
 
-data <- readRDS("/media/santorolab/C207-3566/cass_BHRC_28042025_ARTICLE.RDS")
-pca_all <- data$PCA_all_samples # latest version
+# PCA
+all_pcs <-
+  data$PCA_all_samples %>%
+  inner_join(., select(database, IID, PRS, gender), by = "IID")
 
-for_plot <- inner_join(pca_all, select(data$proband_data, IID, gender, site), by = "IID")
-
-var_exp10 <- val_10 / sum(val_10)
-
-scree_data <-
-	rbind(data.frame(PC = 1:10, var_exp = var_exp10)) %>%
-	rename(PC = 1, var_exp = 2) %>%
-	mutate(var_exp_pct = var_exp * 100)
+# PRS correction
+shapiro.test(all_pcs$PRS)
+model <- glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = all_pcs)
+model_diagnostics <- augment(model)
+model_diagnostics$.fitted <- predict(model, type = "response")
+partial_residuals <- residuals(model, type = "partial")
+partial_residuals_df <- as.data.frame(partial_residuals)
+partial_residuals_df$.fitted <- model_diagnostics$.fitted
 
 ggthemr("grape")
+# Panel A: Residuals vs. Fitted Values Plot
+p1 <-
+	ggplot(model_diagnostics, aes(x = .fitted, y = .resid)) +
+  geom_point(alpha = 0.6, color = "black") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(x = "Fitted Values", y = "Residuals") +
+  theme_publish()
 
-# Panel A: PC1 x PC2
-fig1 <-
-	ggplot(for_plot, aes(PC1, PC2, shape = gender, color = site)) +
-	geom_point(size = 3, alpha = 0.5) +
-  labs(y = "PC2", x = "PC1", shape = "", color = "") +
-  theme_publish() +
-	theme(legend.position = "top")
+# Panel B: Scale-Location Plot
+p2 <- ggplot(model_diagnostics, aes(sample = .std.resid)) +
+  geom_qq_line(color = "red") +
+  geom_qq(alpha = 0.6, color = "black") +
+  labs(x = "Theoretical Quantiles", y = "Standardized Residuals") +
+  theme_publish()
 
-# Panel B: PC1 x PC3
-fig2 <-
-	ggplot(for_plot, aes(PC1, PC3, shape = gender, color = site)) +
-	geom_point(size = 3, alpha = 0.5) +
-  labs(y = "PC3", x = "PC1") +
-  theme_publish() +
-	theme(legend.position = "none")
+# Panel C: QQ Plot of Residuals
+p3 <-
+	ggplot(model_diagnostics, aes(x = .fitted, y = sqrt(abs(.std.resid)))) +
+  geom_point(alpha = 0.6, color = "black") +
+  geom_smooth(se = FALSE, color = "red") +
+  labs(x = "Fitted Values", y = "sqrt(|Standardized Residuals|)") +
+  theme_publish()
 
-# Panel C: PC1 x PC4
-fig3 <-
-	ggplot(for_plot, aes(PC1, PC4, shape = gender, color = site)) +
-	geom_point(size = 3, alpha = 0.5) +
-  labs(y = "PC4", x = "PC1") +
-  theme_publish() +
-	theme(legend.position = "none")
+# Panel D: Cook's Distance Plot
+p4 <-
+	ggplot(model_diagnostics, aes(x = seq_along(.cooksd), y = .cooksd)) +
+  geom_bar(stat = "identity", width = 0.5, fill = "black") +
+  geom_hline(yintercept = 0.5, linetype = "dashed", color = "red") +
+  labs(x = "Observation Index", y = "Cook's Distance") +
+  theme_publish()
 
-# Panel D: scree plot for PCs
-fig4 <-
-	ggplot(scree_data, aes(x = PC, y = var_exp_pct)) +
-		geom_col() +
-		geom_line(color = "black", linewidth = 1, alpha = 0.5) +
-		geom_point(color = "black", size = 2) +
-		geom_text(aes(label = paste0(round(var_exp_pct, 2), "%")), vjust = -1.5, color = "black", size = 5, angle = 25) +
-		scale_x_continuous(breaks = function(x) seq(floor(min(x)), ceiling(max(x)), by = 1)) +
-		scale_y_continuous(expand = expansion(mult = c(0.05, 0.15))) +
-		labs(
-			x = "Principal Component",
-			y = "% explained variance") +
-		theme_publish() +
-		theme(
-			legend.position = "none",
-			strip.text.x = element_blank(),
-			axis.text = element_text(size = 10),
-			axis.title = element_text(size = 10))
-
-final <- fig1 / (fig2 + fig3) / fig4 + plot_annotation(tag_levels = 'A')
+# Combine plots
+library(patchwork)
+final <- (p1 + p2) / (p3 + p4) + plot_annotation(tag_levels = 'A')
 final
 
 ggsave("fig3_sup.png", final, device = "png", height = 300, width = 200, units = "mm")

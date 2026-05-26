@@ -1,64 +1,124 @@
-pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, patchwork)
+pacman::p_load(dplyr, data.table, ggplot2, ggdist, tidyquant, ggthemr, envalysis, tidyr, patchwork)
 
-data <- readRDS("/media/santorolab/C207-3566/cass_BHRC_28042025_ARTICLE.RDS")
-database <- data$proband_data %>% # latest version
-	mutate(
-		W0 = ifelse(W0 == 2, 1, 0),
-		W1 = ifelse(W1 == 2, 1, 0),
-		W2 = ifelse(W2 == 2, 1, 0))
+data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+
+# Samples
+database <- data$proband_data # latest version
 females <- filter(database, gender == "Female")
 males <- filter(database, gender == "Male")
 
 # PCA
 all_pcs <-
-  data$PCA_all_samples %>%
-  inner_join(., select(database, IID, PRS, gender), by = "IID")
+	data$PCA_all_samples %>%
+	inner_join(., select(database, IID, PRS, gender), by = "IID")
 
-fem_pcs <-
-  data$PCA_by_sex %>%
-  inner_join(., select(females, IID, PRS), by = "IID")
+pcs_females <-
+	data$PCA_by_sex %>%
+	inner_join(., select(females, IID, PRS), by = "IID")
 
-man_pcs <-
-  data$PCA_by_sex %>%
-  inner_join(., select(males, IID, PRS), by = "IID")
+pcs_males <-
+	data$PCA_by_sex %>%
+	inner_join(., select(males, IID, PRS), by = "IID")
 
-# PRS correction
-shapiro.test(all_pcs$PRS)
-new_PRS <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4 + gender, family = "gaussian", data = all_pcs))
-database <- cbind(select(database, -PRS), PRS = new_PRS)
+# PRS adjustment
+# shapiro.test(all_pcs$PRS)
+new_PRS <-
+	residuals(glm(
+		PRS ~ PC1 + PC2 + PC3 + PC4,
+		family = "gaussian",
+		data = all_pcs))
 
-shapiro.test(fem_pcs$PRS)
-new_PRS_fem <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = fem_pcs))
-females <- cbind(select(females, -PRS), PRS = new_PRS_fem)
+# shapiro.test(pcs_females$PRS)
+new_PRS_fem <-
+	residuals(glm(
+		PRS ~ PC1 + PC2 + PC3 + PC4,
+		family = "gaussian",
+		data = pcs_females))
 
-shapiro.test(man_pcs$PRS)
-new_PRS_man <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = man_pcs))
-males <- cbind(select(males, -PRS), PRS = new_PRS_man)
+# shapiro.test(pcs_males$PRS)
+new_PRS_man <-
+	residuals(glm(
+		PRS ~ PC1 + PC2 + PC3 + PC4,
+		family = "gaussian",
+		data = pcs_males))
 
-ggthemr("greyscale")
+# Plotting object
+for_plot <- list()
+for_plot$panelA <- data.frame(
+  PRS = c(new_PRS, new_PRS_fem, new_PRS_man),
+  dataset =
+		rep(c("all", "female", "male"),
+		times = c(length(new_PRS),
+							length(new_PRS_fem),
+							length(new_PRS_man)))) %>%
+	mutate(dataset = factor(dataset, levels = c("all", "female", "male")))
 
-# Panel A: all corrected PRS values
-fig1 <-
-	ggplot(database, aes(sample = PRS)) +
-	geom_qq_line(alpha = 0.5, color = "red") +
-	geom_qq(size = 1, color = "black") +
-	labs(y = "PRS distribution", x = "Theorical distribution") +
-	theme_publish()
+for_plot$panelB <-
+	select(database, gender, starts_with("age_")) %>%
+	pivot_longer(cols = starts_with("age_"),
+							 names_to = "wave",
+							 values_to = "age") %>%
+	mutate(wave = gsub("age_", "", wave))
 
-# Panel B: all corrected PRS stratified by sex
-fig2 <-
-	ggplot(database, aes(gender, PRS)) +
-	geom_boxplot() +
+ggthemr("grape")
+
+# Panel A: violin plot (all | fem | male)
+p1 <-
+	ggplot(for_plot$panelA, aes(dataset, PRS, fill = dataset)) +
+	scale_y_continuous(n.breaks = 7) +
+	geom_violin(alpha = 0.5, width = 0.7) +
+	geom_boxplot(
+		color = "white",
+		outlier.colour = "red",
+		outlier.size = 2,
+		width = 0.1,
+		alpha = 0.5) +
+	scale_x_discrete(labels = c("All (N=1553)", "Females (N=692)", "Males (N=861)")) +
 	labs(x = "") +
-	theme_publish()
+	theme_publish() +
+	theme(
+		legend.position = "none",
+		panel.grid.major.y = element_line(
+			linetype = "dashed",
+			linewidth = 0.2,
+			color = "#cfcfcf"))
 
-# Panel C: all corrected PRS stratified by site
-fig3 <-
-	ggplot(database, aes(site, PRS)) +
-	geom_boxplot() +
-	labs(x = "") +
-	theme_publish()
+ggthemr_reset()
+ggthemr("fresh")
 
-final <- fig1 / (fig2 + fig3) + plot_annotation(tag_levels = 'A')
+# Panel B: raincloud plot - horizontal (age x wave)
+p2 <-
+	ggplot(for_plot$panelB, aes(x = age, y = wave, fill = wave)) +
+	ggdist::stat_halfeye(
+		adjust = 1,
+		justification = -0.2,
+		.width = 0,
+		point_colour = NA,
+		scale = 0.5,
+		alpha = 0.9) +
+	geom_boxplot(
+		width = 0.1,
+		alpha = 0.5,
+		outlier.colour = "red") +
+	ggdist::stat_dots(
+		side = "left",
+		justification = 1.05,
+		binwidth = 0.15,
+		alpha = 0.4,
+		dotsize = 0.2) +
+	tidyquant::scale_fill_tq() +
+	tidyquant::theme_tq() +
+	scale_x_continuous(n.breaks = 15) +
+	labs(y = "", fill = "", x = "Age (yr)") +
+	theme_publish() +
+	theme(
+		legend.position = "none",
+		panel.grid.major.x = element_line(
+			color = "#cfcfcf",
+			linetype = "dashed",
+			linewidth = 0.2))
 
-ggsave("fig1_sup.png", final, device = "png", height = 300, width = 200, units = "mm")
+# Final plot export
+final <- p1 / p2 +  plot_annotation(tag_levels = 'A')
+ggsave("sup_fig1.png", device = "png", height = 300, width = 200, units = "mm")
+

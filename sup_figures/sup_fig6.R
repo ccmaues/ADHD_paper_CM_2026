@@ -1,110 +1,211 @@
-pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, DescTools)
+# AUROC and AUCPR over time
+pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, nsROC, PRROC)
 
-# Explained variance of diagnosis
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 database <- data$proband_data %>% # latest version
 	mutate(
 		W0 = ifelse(W0 == 2, 1, 0),
 		W1 = ifelse(W1 == 2, 1, 0),
 		W2 = ifelse(W2 == 2, 1, 0))
+females <- filter(database, gender == "Female")
+males <- filter(database, gender == "Male")
 
 # PCA
 all_pcs <-
   data$PCA_all_samples %>%
   inner_join(., select(database, IID, PRS, gender), by = "IID")
 
-all <-
-	inner_join(
-		select(all_pcs, IID, PC1, PC2, PC3, PC4),
-		select(database, IID, PRS, gender, age_W0, age_W1, age_W2, W0, W1, W2),
-		by = "IID")
+fem_pcs <-
+  data$PCA_by_sex %>%
+  inner_join(., select(females, IID, PRS), by = "IID")
 
-all_w0 <- data.frame(
-	R2 = c(
-  	PseudoR2(glm(W0 ~ PRS, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC2, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + age_W0, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W0 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "Sex", "Full model")) %>%
-	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "Sex", "Full model")))
+man_pcs <-
+  data$PCA_by_sex %>%
+  inner_join(., select(males, IID, PRS), by = "IID")
 
-all_w1 <- data.frame(
-		R2 = c(
-	  PseudoR2(glm(W1 ~ PRS, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC2, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + age_W1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W1 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W1", "Sex", "Full model")) %>%
-	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W1", "Sex", "Full model")))
+# PRS correction
+shapiro.test(all_pcs$PRS)
+new_PRS <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4 + gender, family = "gaussian", data = all_pcs))
+database <- cbind(select(database, -PRS), PRS = new_PRS)
 
-all_w2 <-
-	data.frame(
-		R2 = c(
-	  PseudoR2(glm(W2 ~ PRS, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC2, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + age_W2, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W2 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W2", "Sex", "Full model")) %>%
-	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W2", "Sex", "Full model")))
+shapiro.test(fem_pcs$PRS)
+new_PRS_fem <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = fem_pcs))
+females <- cbind(select(females, -PRS), PRS = new_PRS_fem)
 
-ggthemr("grape")
+shapiro.test(man_pcs$PRS)
+new_PRS_man <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = man_pcs))
+males <- cbind(select(males, -PRS), PRS = new_PRS_man)
+
+# AUROC (FPR and TPR)
+all_W0_AUROC <- gROC(database$PRS, database$W0, pvac.auc = TRUE, side = "auto")
+all_W1_AUROC <- gROC(database$PRS, database$W1, pvac.auc = TRUE, side = "auto")
+all_W2_AUROC <- gROC(database$PRS, database$W2, pvac.auc = TRUE, side = "auto")
+    
+fem_W0_AUROC <- gROC(females$PRS, females$W0, pvac.auc = TRUE, side = "auto")
+fem_W1_AUROC <- gROC(females$PRS, females$W1, pvac.auc = TRUE, side = "auto")
+fem_W2_AUROC <- gROC(females$PRS, females$W2, pvac.auc = TRUE, side = "auto")
+
+man_W0_AUROC <- gROC(males$PRS, males$W0, pvac.auc = TRUE, side = "auto")
+man_W1_AUROC <- gROC(males$PRS, males$W1, pvac.auc = TRUE, side = "auto")
+man_W2_AUROC <- gROC(males$PRS, males$W2, pvac.auc = TRUE, side = "auto")
+
+# AUCPR (Recal and Precision)
+all_W0_AUCPR <- pr.curve(scores.class0 = database$PRS, weights.class0 = database$W0, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)
+all_W1_AUCPR <- pr.curve(scores.class0 = database$PRS, weights.class0 = database$W1, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)
+all_W2_AUCPR <- pr.curve(scores.class0 = database$PRS, weights.class0 = database$W2, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)
+
+fem_W0_AUCPR <- pr.curve(scores.class0 = females$PRS, weights.class0 = females$W0, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)
+fem_W1_AUCPR <- pr.curve(scores.class0 = females$PRS, weights.class0 = females$W1, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)
+fem_W2_AUCPR <- pr.curve(scores.class0 = females$PRS, weights.class0 = females$W2, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)
+
+man_W0_AUCPR <- pr.curve(scores.class0 = males$PRS, weights.class0 = males$W0, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)
+man_W1_AUCPR <- pr.curve(scores.class0 = males$PRS, weights.class0 = males$W1, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)
+man_W2_AUCPR <- pr.curve(scores.class0 = males$PRS, weights.class0 = males$W2, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)
+
+ap1 <-
+  rbind(
+		data.frame(FPR = all_W0_AUROC$points.coordinates[, "FPR"], TPR = all_W0_AUROC$points.coordinates[, "TPR"], wave = "W0"),
+    data.frame(FPR = all_W1_AUROC$points.coordinates[, "FPR"], TPR = all_W1_AUROC$points.coordinates[, "TPR"], wave = "W1"),
+    data.frame(FPR = all_W2_AUROC$points.coordinates[, "FPR"], TPR = all_W2_AUROC$points.coordinates[, "TPR"], wave = "W2"))
+
+ap2 <-
+  rbind(
+		data.frame(Recall = all_W0_AUCPR$curve[, 1], Precision = all_W0_AUCPR$curve[, 2], wave = "W0"),
+		data.frame(Recall = all_W1_AUCPR$curve[, 1], Precision = all_W1_AUCPR$curve[, 2], wave = "W1"),
+		data.frame(Recall = all_W2_AUCPR$curve[, 1], Precision = all_W2_AUCPR$curve[, 2], wave = "W2"))
+
+ap3 <-
+  rbind(
+		data.frame(FPR = man_W0_AUROC$points.coordinates[, "FPR"], TPR = man_W0_AUROC$points.coordinates[, "TPR"], wave = "W0"),
+    data.frame(FPR = man_W1_AUROC$points.coordinates[, "FPR"], TPR = man_W1_AUROC$points.coordinates[, "TPR"], wave = "W1"),
+    data.frame(FPR = man_W2_AUROC$points.coordinates[, "FPR"], TPR = man_W2_AUROC$points.coordinates[, "TPR"], wave = "W2"))
+
+ap4 <-
+  rbind(
+		data.frame(Recall = man_W0_AUCPR$curve[, 1], Precision = man_W0_AUCPR$curve[, 2], wave = "W0"),
+		data.frame(Recall = man_W1_AUCPR$curve[, 1], Precision = man_W1_AUCPR$curve[, 2], wave = "W1"),
+		data.frame(Recall = man_W2_AUCPR$curve[, 1], Precision = man_W2_AUCPR$curve[, 2], wave = "W2"))
+
+ap5 <-
+  rbind(
+		data.frame(FPR = fem_W0_AUROC$points.coordinates[, "FPR"], TPR = fem_W0_AUROC$points.coordinates[, "TPR"], wave = "W0"),
+    data.frame(FPR = fem_W1_AUROC$points.coordinates[, "FPR"], TPR = fem_W1_AUROC$points.coordinates[, "TPR"], wave = "W1"),
+    data.frame(FPR = fem_W2_AUROC$points.coordinates[, "FPR"], TPR = fem_W2_AUROC$points.coordinates[, "TPR"], wave = "W2"))
+
+ap6 <-
+  rbind(
+		data.frame(Recall = fem_W0_AUCPR$curve[, 1], Precision = fem_W0_AUCPR$curve[, 2], wave = "W0"),
+		data.frame(Recall = fem_W1_AUCPR$curve[, 1], Precision = fem_W1_AUCPR$curve[, 2], wave = "W1"),
+		data.frame(Recall = fem_W2_AUCPR$curve[, 1], Precision = fem_W2_AUCPR$curve[, 2], wave = "W2"))
+
+ggthemr("fresh")
 
 p1 <-
-	ggplot(all_w0, aes(var, R2, fill = var)) +
-		geom_col() +
-		geom_text(label = paste0(round(all_w0$R2 * 100, 2), "%"), vjust = -1) +
-    scale_fill_grey(start = 0.2, end = 0.8) +
-		geom_hline(aes(yintercept = 0.007421887), linetype = "dashed", color = "red") +
-		scale_y_continuous(limits = c(0, 0.05), n.breaks = 5, expand = expansion(mult = c(0.05, 0.15))) +
-		labs(y = "", x = "") +
-		theme_publish() +
-		theme(
-			legend.position = "none",
-			axis.title = element_text(size = 10),
-			axis.text = element_text(size = 10))
+	ggplot(ap1, aes(x = FPR, y = TPR, color = wave)) +
+	geom_abline(slope = 1, intercept = 0, linetype = "dotted", color = "#ff0000") +
+  geom_path(linewidth = 1, aes(linetype = wave)) +
+  scale_linetype_manual(values = c("W0" = "dotted", "W1" = "dashed", "W2" = "solid")) +
+  # scale_color_manual(values = c("#000000", "#353535", "#757575"), labels = c("W0", "W1", "W2")) +
+  labs(x = "False-Positive Rate", y = "True-Positive Rate") +
+  theme_publish() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 10),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    legend.title = element_blank(),
+    legend.position = "bottom")
 
 p2 <-
-	ggplot(all_w1, aes(var, R2, fill = var)) +
-	  geom_col() +
-	  geom_text(label = paste0(round(all_w1$R2 * 100, 2), "%"), vjust = -1) +
-    scale_fill_grey(start = 0.2, end = 0.8) +
-	  geom_hline(aes(yintercept =  0.009543698), linetype = "dashed", color = "red") +
-	  scale_y_continuous(limits = c(0, 0.05), n.breaks = 5, expand = expansion(mult = c(0.05, 0.15))) +
-	  labs(y = "\nExplained Variance [Nagelkerke]\n", x = "") +
-	  theme_publish() +
-	  theme(
-			legend.position = "none",
-			axis.title = element_text(size = 10),
-			axis.text = element_text(size = 10))
+	ggplot(ap2, aes(x = Recall, y = Precision, color = wave)) +
+  geom_path(linewidth = 1, aes(linetype = wave)) +
+  scale_linetype_manual(values = c("W0" = "dotted", "W1" = "dashed", "W2" = "solid")) +
+  # scale_color_manual(values = c("#000000", "#353535", "#757575"), labels = c("W0", "W1", "W2")) +
+  labs(x = "Recall", y = "Precision") +
+  theme_publish() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 10),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    legend.title = element_blank(),
+    legend.position = "bottom")
 
 p3 <-
-	ggplot(all_w2, aes(var, R2, fill = var)) +
-    geom_col() +
-    geom_text(label = paste0(round(all_w2$R2 * 100, 2), "%"), vjust = -1) +
-    scale_y_continuous(limits = c(0, 0.05), n.breaks = 5, expand = expansion(mult = c(0.05, 0.15))) +
-    scale_fill_grey(start = 0.2, end = 0.8) +
-    geom_hline(aes(yintercept =  0.01320031), linetype = "dashed", color = "red") +
-    labs(y = "", x = "") +
-    theme_publish() +
-    theme(
-        legend.position = "none",
-        axis.title = element_text(size = 10),
-        axis.text = element_text(size = 10))
+	ggplot(ap3, aes(x = FPR, y = TPR, color = wave)) +
+	geom_abline(slope = 1, intercept = 0, linetype = "dotted", color = "#ff0000") +
+  geom_path(linewidth = 1, aes(linetype = wave)) +
+  scale_linetype_manual(values = c("W0" = "dotted", "W1" = "dashed", "W2" = "solid")) +
+  # scale_color_manual(values = c("#000000", "#353535", "#757575"), labels = c("W0", "W1", "W2")) +
+  labs(x = "False-Positive Rate", y = "True-Positive Rate") +
+  theme_publish() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 10),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    legend.title = element_blank(),
+    legend.position = "bottom")
 
-library(patchwork)
+p4 <-
+	ggplot(ap4, aes(x = Recall, y = Precision, color = wave)) +
+  geom_path(linewidth = 1, aes(linetype = wave)) +
+  scale_linetype_manual(values = c("W0" = "dotted", "W1" = "dashed", "W2" = "solid")) +
+  # scale_color_manual(values = c("#000000", "#353535", "#757575"), labels = c("W0", "W1", "W2")) +
+  labs(x = "Recall", y = "Precision") +
+  theme_publish() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 10),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    legend.title = element_blank(),
+    legend.position = "bottom")
 
-final <- p1 / p2 / p3 + plot_annotation(tag_levels = c("A", "B", "C"))
+p5 <-
+	ggplot(ap5, aes(x = FPR, y = TPR, color = wave)) +
+	geom_abline(slope = 1, intercept = 0, linetype = "dotted", color = "#ff0000") +
+  geom_path(linewidth = 1, aes(linetype = wave)) +
+  scale_linetype_manual(values = c("W0" = "dotted", "W1" = "dashed", "W2" = "solid")) +
+  # scale_color_manual(values = c("#000000", "#353535", "#757575"), labels = c("W0", "W1", "W2")) +
+  labs(x = "False-Positive Rate", y = "True-Positive Rate") +
+  theme_publish() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 10),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    legend.title = element_blank(),
+    legend.position = "bottom")
 
-ggsave("fig6_sup.png",final, device = "png", width = 200, height = 300, units = "mm", dpi = 300, bg = "white")
+p6 <-
+	ggplot(ap6, aes(x = Recall, y = Precision, color = wave)) +
+  geom_path(linewidth = 1, aes(linetype = wave)) +
+  scale_linetype_manual(values = c("W0" = "dotted", "W1" = "dashed", "W2" = "solid")) +
+  # scale_color_manual(values = c("#000000", "#353535", "#757575"), labels = c("W0", "W1", "W2")) +
+  labs(x = "Recall", y = "Precision") +
+  theme_publish() +
+  theme(
+    axis.title = element_text(size = 10, face = "bold"),
+    axis.text = element_text(size = 10),
+    plot.title = element_text(size = 10),
+    plot.subtitle = element_text(size = 10),
+    plot.caption = element_text(size = 10),
+    legend.text = element_text(size = 10),
+    legend.title = element_blank(),
+    legend.position = "bottom")
+
+final <- (p1 + p2) / (p3 + p4) / (p5 + p6) + plot_annotation(tag_levels = 'A')
+#scale_color_manual(values = c("#65acc2", "#233b43", "#e84646"), labels = c("W0", "W1", "W2")) +
+
+ggsave("fig5_sup.png",final, device = "png", width = 200, height = 300, units = "mm", dpi = 300, bg = "white")
