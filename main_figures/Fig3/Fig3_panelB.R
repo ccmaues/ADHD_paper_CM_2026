@@ -15,7 +15,7 @@ females <-
 	inner_join(., data$PCA_by_sex, by = "IID") %>%
 	filter(gender == "Female")
 
-# PCA
+# PCA (do I really need this part given what Ive written above?)
 sex_stratified_pcs_F <-
 	data$PCA_by_sex %>%
 	inner_join(., select(females, IID, PRS), by = "IID")
