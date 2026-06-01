@@ -10,7 +10,7 @@ database <-
 		W0 = ifelse(W0 == 2, 1, 0),
 		W1 = ifelse(W1 == 2, 1, 0),
 		W2 = ifelse(W2 == 2, 1, 0)) %>%
-	select(IID, gender, W0, W1, W2, age_W0, age_W1, age_W2)
+	select(IID, gender, W0, W1, W2, age_W0, age_W1, age_W2, site)
 
 # PCA
 all_pcs <-
@@ -41,9 +41,9 @@ wd <- plyr::join_all(
 str(wd)
 
 # models
-mod_w0 <- glm(W0 ~ gender + age_W0 + PRS + any_hist, family = binomial, data = wd)
-mod_w1 <- glm(W1 ~ gender + age_W1 + PRS + any_hist, family = binomial, data = wd)
-mod_w2 <- glm(W2 ~ gender + age_W2 + PRS + any_hist, family = binomial, data = wd)
+mod_w0 <- glm(W0 ~ gender + age_W0 + PRS + any_hist + site, family = binomial, data = wd)
+mod_w1 <- glm(W1 ~ gender + age_W1 + PRS + any_hist + site, family = binomial, data = wd)
+mod_w2 <- glm(W2 ~ gender + age_W2 + PRS + any_hist + site, family = binomial, data = wd)
 
 final <- tbl_merge(
   tbls = list(
