@@ -20,7 +20,7 @@ males <- filter(database, gender == "Male")
 # PCA
 all_pcs <-
   data$PCA_all_samples %>%
-  inner_join(., select(database, IID, PRS, gender), by = "IID")
+  inner_join(., select(database, IID, PRS), by = "IID")
 
 fem_pcs <-
   data$PCA_by_sex %>%
@@ -31,7 +31,7 @@ man_pcs <-
   inner_join(., select(males, IID, PRS), by = "IID")
 
 # PRS correction
-new_PRS <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4 + gender, family = "gaussian", data = all_pcs))
+new_PRS <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = all_pcs))
 new_PRS_fem <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = fem_pcs))
 new_PRS_man <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = man_pcs))
 

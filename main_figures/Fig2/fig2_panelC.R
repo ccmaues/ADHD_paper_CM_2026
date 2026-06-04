@@ -1,5 +1,5 @@
 # Odds ratio per PRS strata on W0, W1 and W2 (all samples)
-pacman::p_load(dplyr, broom, ggplot2, envalysis, ggthemr)
+pacman::p_load(dplyr, broom, ggplot2, envalysis, ggthemr, patchwork)
 
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 
@@ -9,7 +9,7 @@ database <-
 		W0 = ifelse(W0 == 2, 1, 0),
 		W1 = ifelse(W1 == 2, 1, 0),
 		W2 = ifelse(W2 == 2, 1, 0)) %>%
-	select(IID, gender, W0, W1, W2)
+	select(IID, gender, W0, W1, W2, starts_with("age_"))
 
 # PCA
 all_pcs <-
@@ -40,9 +40,9 @@ wd <-
 
 # Models
 models <-
-	list(w0 = glm(W0 ~ factor(decile) + gender + any_hist, family = binomial, data = wd),
-		 w1 = glm(W1 ~ factor(decile) + gender + any_hist, family = binomial, data = wd),
-		 w2 = glm(W2 ~ factor(decile) + gender + any_hist, family = binomial, data = wd)) %>%
+	list(w0 = glm(W0 ~ factor(decile) + gender + any_hist + age_W0, family = binomial, data = wd),
+		 w1 = glm(W1 ~ factor(decile) + gender + any_hist + age_W1, family = binomial, data = wd),
+		 w2 = glm(W2 ~ factor(decile) + gender + any_hist + age_W2, family = binomial, data = wd)) %>%
   lapply(function(mod) {
     tidy(mod,
          exponentiate = TRUE,

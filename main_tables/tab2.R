@@ -56,7 +56,7 @@ final <- wd$all %>%
     Family_history = sprintf("%d (%.1f%%)", sum(any_hist == 1), 100 * mean(any_hist == 1)),
     ADHD_W0 = sprintf("%d (%.1f%%)", sum(W0 == 1), 100 * mean(W0 == 1)),
     ADHD_W1 = sprintf("%d (%.1f%%)", sum(W1 == 1), 100 * mean(W1 == 1)),
-    ADHD_W2 = sprintf("%d (%.1f%%)", sum(W2 == 1), 100 * mean(W2 == 1)),
+    ADHD_W2 = sprintf("%d (%.1f%%)", sum(W2 == 1), 100 * mean(W2 == 1))) %>%
   flextable() %>%
   bold(part = "header") %>%
   bold(i = section_rows, bold = TRUE) %>%
