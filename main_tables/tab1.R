@@ -24,11 +24,8 @@ wd <-
   select(IID, site, W0, W1, W2, any_hist, age_W0, age_W1, age_W2, gender, site)
 
 female_txt <- sprintf("%d (%.1f%%)", sum(wd$gender == "Female"), 100 * mean(wd$gender == "Female"))
-male_txt <- sprintf("%d (%.1f%%)", sum(wd$gender == "Male"), 100 * mean(wd$gender == "Male"))
-sp_txt <- sprintf("%d (%.1f%%)", sum(wd$site == "SP"), 100 * mean(wd$site == "SP"))
 rs_txt <- sprintf("%d (%.1f%%)", sum(wd$site == "RS"), 100 * mean(wd$site == "RS"))
 fh_yes_txt <- sprintf("%d (%.1f%%)", sum(wd$any_hist == 1), 100 * mean(wd$any_hist == 1))
-fh_no_txt <- sprintf("%d (%.1f%%)", sum(wd$any_hist == 0), 100 * mean(wd$any_hist == 0))
 w0_txt <- sprintf("%d (%.1f%%)", sum(wd$W0 == "1"), 100 * mean(wd$W0 == "1"))
 w1_txt <- sprintf("%d (%.1f%%)", sum(wd$W1 == "1"), 100 * mean(wd$W1 == "1"))
 w2_txt <- sprintf("%d (%.1f%%)", sum(wd$W2 == "1"), 100 * mean(wd$W2 == "1"))
@@ -40,13 +37,8 @@ tab_s1 <- tribble(
   ~Characteristic, ~Overall,
   "Demographics", "",
   "Female", female_txt,
-  "Male", male_txt,
-  "Study site", "",
   "São Paulo", sp_txt,
-  "Rio Grande do Sul", rs_txt,
   "Family history", "",
-  "Yes", fh_yes_txt,
-  "No", fh_no_txt,
   "ADHD diagnosis", "",
   "Wave 0", w0_txt,
   "Wave 1", w1_txt,
@@ -72,5 +64,5 @@ ft_s1 <-
   autofit()
 
 save_as_docx(
-  "Supplementary Table S1. Cohort characteristics." = ft_s1,
-  path = "sup_tab1.docx")
+  "Table 1. Cohort characteristics." = ft_s1,
+  path = "tab1.docx")

@@ -47,11 +47,11 @@ p1 <-
 			labels = paste0(1:10))
 
 ggsave(
-	"fig2_panelE.png",
+	"fig2_panelA.png",
 	p1,
 	device = "png",
 	units = "cm",
-	width = 8,
-	height = 15,
+	width = 9,
+	height = 20,
 	dpi = 400,
 	bg = "white")

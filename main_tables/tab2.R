@@ -1,4 +1,4 @@
-# PRS table characteristics (for all data)
+# PRS table characteristics
 pacman::p_load(dplyr, flextable, officer)
 
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
@@ -57,9 +57,6 @@ final <- wd$all %>%
     ADHD_W0 = sprintf("%d (%.1f%%)", sum(W0 == 1), 100 * mean(W0 == 1)),
     ADHD_W1 = sprintf("%d (%.1f%%)", sum(W1 == 1), 100 * mean(W1 == 1)),
     ADHD_W2 = sprintf("%d (%.1f%%)", sum(W2 == 1), 100 * mean(W2 == 1)),
-    Age_W0 = sprintf( "%.1f [%.1f, %.1f]", median(age_W0), quantile(age_W0, .25), quantile(age_W0, .75)),
-    Age_W1 = sprintf("%.1f [%.1f, %.1f]", median(age_W1), quantile(age_W1, .25), quantile(age_W1, .75)),
-    Age_W2 = sprintf("%.1f [%.1f, %.1f]", median(age_W2), quantile(age_W2, .25), quantile(age_W2, .75))) %>%
   flextable() %>%
   bold(part = "header") %>%
   bold(i = section_rows, bold = TRUE) %>%
@@ -70,10 +67,10 @@ final <- wd$all %>%
   autofit() %>%
 	add_footer_lines(
     values = c(
-      "Note. Continuous variables are reported as median [Q1, Q3].",
       "Categorical variables are reported as n (%).",
       "PRS strata were defined as Low (≤20th percentile), Intermediate (21st–79th percentile), and High (≥80th percentile)."))
 
 save_as_docx(
-  "Supplementary Table S2. Cohort characteristics." = final,
+  "Table S2. Cohort charfacteristiscs per risk strata." = final,
   path = "tab2.docx")
+
