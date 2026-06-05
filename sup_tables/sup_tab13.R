@@ -1,1 +1,0 @@
-# Equations and covariables applied in this investigation

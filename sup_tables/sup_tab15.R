@@ -1,3 +1,4 @@
+# Odds ratio for 10 (low), else (10 > x < 90), and high (>90)
 # figure 1 and 2 (old ones) into a unique panel
 pacman::p_load(data.table, ggplot2, ggthemr, envalysis, tidyverse, broom, patchwork)
 options(scipen = 999) # disable scientific notation
@@ -261,46 +262,29 @@ fp3 <- bind_rows(
   type2_results %>% mutate(comparison = "Else vs. 10th", strata = "males"),
   type3_results %>% mutate(comparison = "90th vs. Else", strata = "males"))
 
-#### Plotting
-ggthemr("fresh")
-for_plot <-
+wd <-
   rbind(fp1, fp2, fp3) %>%
   mutate(
     strata = factor(strata, levels = c("all", "males", "females")),
     comparison = factor(comparison, levels = c("90th vs. 10th", "Else vs. 10th", "90th vs. Else")),
     signif = ifelse(p.value < 0.05, "*", ""))
 
-## odds ratio over wave plots
-# https://www.epirhandbook.com/en/new_pages/regression.html#forest-plot
-dodge <- position_dodge(width = 0.7)
-
-final <-
-  ggplot(for_plot, aes(y = OR, x = comparison, color = wave)) +
-    geom_hline(yintercept = 1, linetype = "dashed", color = "black", size = 0.2, alpha = 0.5) +
-    geom_point(position = dodge, size = 2) +
-    geom_errorbar(
-      aes(ymin = CI_low, ymax = CI_high),
-      position = dodge,
-      width = 0.3,
-      linewidth = 0.5,
-      alpha = 0.6) +
-    geom_text(
-      aes(y = CI_high, label = signif),
-      position = dodge,
-      vjust = -0.5,
-      size = 5,
-      show.legend = FALSE) +
-    labs(color = "", x = "", y = "Odds ratio") +
-    guides(shape = "none") +
-    theme_publish(base_size = 10) +
-    theme(legend.position = "top") +
-    facet_wrap(~strata, labeller = as_labeller(c("all" = "A", "males" = "B", "females" = "C")))
-
-ggsave(
-  "Figure_4.png",
-  device = "png",
-  width = 20,
-  height = 7,
-  units = "cm",
-  dpi = 400,
-  bg = "white")
+final <- mutate(wd,
+    estimate = sprintf("%.2f (%.2f–%.2f)", OR, CI_low, CI_high),
+    p.value = format.pval(p.value, digits = 3, eps = .001)) %>%
+  select(strata, comparison, wave, estimate, p.value) %>%
+  rename(
+    Sample = strata,
+    Comparison = comparison,
+    Wave = wave,
+    `OR (95% CI)` = estimate,
+    `P-value` = p.value) %>%
+  flextable::flextable() %>%
+  flextable::bold(part = "header") %>%
+  flextable::align(part = "all", align = "center") %>%
+  flextable::theme_booktabs() %>%
+  flextable::autofit()
+	
+flextable::save_as_docx(
+  "Supplementary Table S15" = final,
+  path = "sup_tab15.docx")
