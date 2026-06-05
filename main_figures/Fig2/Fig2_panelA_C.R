@@ -60,15 +60,14 @@ for_plot <- imap_dfr(
   mutate(
 		predictor = recode(predictor, "R2" = "R²"),
     wave = factor(wave, levels = c("W0", "W1", "W2")),
-    predictor = factor(predictor, levels = c("R²", "AUROC", "AUCPR")),
-		value = value * 100)
+    predictor = factor(predictor, levels = c("R²", "AUROC", "AUCPR")))
 
 # Plot dataset
 ggthemr("fresh")
 
 p1 <-
 	filter(for_plot, subset == "all") %>%
-	ggplot(aes(x = wave, y = value, group = 1, color = wave)) +
+	ggplot(aes(x = wave, y = value * 100, group = 1, color = wave)) +
 		geom_line(size = 1.2, color = "#c7c7c7") +
 		geom_point(size = 3) +
 		# geom_text(
@@ -100,7 +99,7 @@ p1 <-
 
 p2 <-
 	filter(for_plot, subset == "males") %>%
-	ggplot(aes(x = wave, y = value, group = 1, color = wave)) +
+	ggplot(aes(x = wave, y = value * 100, group = 1, color = wave)) +
 		geom_line(size = 1.2, color = "#c7c7c7") +
 		geom_point(size = 3) +
 		# geom_text(
@@ -131,7 +130,7 @@ p2 <-
 				legend.position = "none")
 p3 <-
 	filter(for_plot, subset == "females") %>%
-	ggplot(aes(x = wave, y = value, group = 1, color = wave)) +
+	ggplot(aes(x = wave, y = value * 100, group = 1, color = wave)) +
 		geom_line(size = 1.2, color = "#c7c7c7") +
 		geom_point(size = 3) +
 		# geom_text(
