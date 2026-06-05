@@ -1,7 +1,9 @@
+# figure 1 and 2 (old ones) into a unique panel
 pacman::p_load(data.table, ggplot2, ggthemr, envalysis, tidyverse, broom, patchwork)
 options(scipen = 999) # disable scientific notation
 
-data <- readRDS("/media/santorolab/C207-3566/cass_BHRC_28042025_ARTICLE.RDS")
+# MAKE VERY SIMILAR TO THE https://www.nature.com/articles/s41380-023-02293-8
+data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 database <- data$proband_data %>% # latest version
 	mutate(
 		W0 = ifelse(W0 == 2, 1, 0),
@@ -98,6 +100,28 @@ males_long <-
     type1 = factor(type1, levels = c("low", "else", "high")), # that way the intercept is the low
     type2 = factor(type2, levels = c("else", "low")),
     type3 = factor(type3, levels = c("else", "high")))
+
+# Testing if the inclusion of wave into the model changes anything
+# Type 1: 90th x 10th
+full_model <- glm(diagnosis ~ type1 * wave, family = "binomial", data = database_long)
+reduced_model <- glm(diagnosis ~ type1, family = "binomial", data = database_long)
+anova(reduced_model, full_model, test = "LRT")
+# note: no significance
+
+# Type 2: 10th x else
+full_model <- glm(diagnosis ~ type2 * wave, family = "binomial", data = database_long)
+reduced_model <- glm(diagnosis ~ type2, family = "binomial", data = database_long)
+anova(reduced_model, full_model, test = "LRT")
+# note: with significance
+
+# Type 3: 90th x else
+full_model <- glm(diagnosis ~ type3 * wave, family = "binomial", data = database_long)
+reduced_model <- glm(diagnosis ~ type3, family = "binomial", data = database_long)
+anova(reduced_model, full_model, test = "LRT")
+# note: with significance
+
+# We want to see wave-specific odds ratios of diagnosis (ORs) for each risk group
+# so we do stratify this
 
 ################### ALL SAMPLES #####################
 # High vs. Low risk stratified by wave
@@ -240,22 +264,19 @@ fp3 <- bind_rows(
 #### Plotting
 ggthemr("fresh")
 for_plot <-
-  fp1 %>%
-	# rbind(fp1, fp2, fp3) %>%
+  rbind(fp1, fp2, fp3) %>%
   mutate(
     strata = factor(strata, levels = c("all", "males", "females")),
     comparison = factor(comparison, levels = c("10th vs. 90th", "10th vs. Else", "90th vs. Else")),
     signif = ifelse(p.value < 0.05, "*", ""))
+
+## odds ratio over wave plots
+# https://www.epirhandbook.com/en/new_pages/regression.html#forest-plot
 dodge <- position_dodge(width = 0.7)
 
 final <-
   ggplot(for_plot, aes(y = OR, x = comparison, color = wave)) +
-    geom_hline(
-			yintercept = 1,
-			linetype = "dashed",
-			color = "#c1c1c1",
-			size = 0.2,
-			aplha = 0.5) +
+    geom_hline(yintercept = 1, linetype = "dashed", color = "black", size = 0.2, alpha = 0.5) +
     geom_point(position = dodge, size = 2) +
     geom_errorbar(
       aes(ymin = CI_low, ymax = CI_high),
@@ -271,12 +292,15 @@ final <-
       show.legend = FALSE) +
     labs(color = "", x = "", y = "Odds ratio") +
     guides(shape = "none") +
-    theme_publish(base_size = 7) +
-    theme(
-			legend.position = "top",
-			axis.text.x = element_text(angle = 0, vjust = 0.5))
+    theme_publish(base_size = 10) +
+    theme(legend.position = "top") +
+    facet_wrap(~strata, labeller = as_labeller(c("all" = "A", "males" = "B", "females" = "C")))
 
 ggsave(
-  "Fig2_panelB.png", final, device = "png",
-  width = 60, height = 60, units = "mm",
-  dpi = 300, bg = "white")
+  "Figure_4.png",
+  device = "png",
+  width = 20,
+  height = 7,
+  units = "cm",
+  dpi = 400,
+  bg = "white")

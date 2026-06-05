@@ -1,94 +1,137 @@
-# Model performance over time (man)
-pacman::p_load(dplyr, tidyr, ggthemr, envalysis, ggplot2, nsROC, PRROC, DescTools)
+# Odds ratio per PRS strata on W0, W1 and W2 (all samples)
+pacman::p_load(dplyr, broom, ggplot2, envalysis, ggthemr, patchwork)
 
-# Article dataset
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 
-# Diagnosis standardtization
-males <-
-	data$proband_data %>% # latest version
+database <-
+  data$proband_data %>% # latest version
 	mutate(
 		W0 = ifelse(W0 == 2, 1, 0),
 		W1 = ifelse(W1 == 2, 1, 0),
-		W2 = ifelse(W2 == 2, 1, 0),
-		across(c(W0, W1, W2), as.numeric)) %>%
-	inner_join(., data$PCA_by_sex, by = "IID") %>%
-	filter(gender == "Male")
+		W2 = ifelse(W2 == 2, 1, 0)) %>%
+	select(IID, gender, W0, W1, W2, starts_with("age_"))
 
 # PCA
-sex_stratified_pcs_F <-
-	data$PCA_by_sex %>%
-	inner_join(., select(males, IID, PRS), by = "IID")
+all_pcs <-
+  data$PCA_all_samples %>%
+  select(IID, PC1, PC2, PC3, PC4) %>%
+	inner_join(., select(data$proband_data, IID, PRS), by = "IID")
 
-# PRS correction
-# shapiro.test(sex_stratified_pcs_F$PRS)
-new_PRS_stratified_fem <-	residuals(glm(
-		PRS ~ PC1 + PC2 + PC3 + PC4,
-		family = "gaussian",
-		data = sex_stratified_pcs_F))
+new_PRS <- residuals(glm(
+	PRS ~ PC1 + PC2 + PC3 + PC4,
+	family = "gaussian",
+	data = all_pcs)) %>%
+	as.data.frame() %>%
+	cbind(data$proband_data$IID, .) %>%
+	rename(IID = 1, PRS = 2)
 
-# working dataset
-for_prediction <- cbind(select(males, -PRS), PRS = new_PRS_stratified_fem, group = "all")
+# Family history
+hist <- data$family_history %>%
+  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0)) %>%
+	select(IID, any_hist)
 
-# Prediction estimate per wave
-for_plot <- data.frame(
-	wave = factor(c(rep("W0", 3), rep("W1", 3), rep("W2", 3)), levels = c("W0", "W1", "W2")),
-	predictor = rep(c("R2", "AUROC", "AUCPR"), 3),
-	value = c(
-		## W0
-		PseudoR2(glm(W0 ~ PRS + age_W0, family = "binomial", data = for_prediction), which = "Nagelkerke"),
-		gROC(for_prediction$PRS, for_prediction$W0, pvac.auc = TRUE, side = "auto")$auc,
-		pr.curve(scores.class0 = for_prediction$PRS, weights.class0 = for_prediction$W0, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)$auc.integral,
-		## W1
-		PseudoR2(glm(W1 ~ PRS + age_W1, family = "binomial", data = for_prediction), which = "Nagelkerke"),
-		gROC(for_prediction$PRS, for_prediction$W1, pvac.auc = TRUE, side = "auto")$auc,
-		pr.curve(scores.class0 = for_prediction$PRS, weights.class0 = for_prediction$W1, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)$auc.integral,
-		## W2
-		PseudoR2(glm(W2 ~ PRS + age_W2, family = "binomial", data = for_prediction), which = "Nagelkerke"),
-		gROC(for_prediction$PRS, for_prediction$W2, pvac.auc = TRUE, side = "auto")$auc,
-		pr.curve(scores.class0 = for_prediction$PRS, weights.class0 = for_prediction$W2, curve = TRUE, sorted = FALSE, max.compute = TRUE, min.compute = TRUE, rand.compute = TRUE)$auc.integral)) %>%
-	mutate(value = value * 100)
+# Working data
+wd <-
+	plyr::join_all(
+		list(database, new_PRS, hist),
+		by = "IID", type = "inner") %>%
+  	mutate(decile = ntile(PRS, 10)) %>%
+	select(!c(PRS, IID))
 
-# Plot dataset
+# Models
+models <-
+	list(w0 = glm(W0 ~ factor(decile) + gender + any_hist + age_W0, family = binomial, data = wd),
+		 w1 = glm(W1 ~ factor(decile) + gender + any_hist + age_W1, family = binomial, data = wd),
+		 w2 = glm(W2 ~ factor(decile) + gender + any_hist + age_W2, family = binomial, data = wd)) %>%
+  lapply(function(mod) {
+    tidy(mod,
+         exponentiate = TRUE,
+         conf.int = TRUE) %>%
+      filter(grepl("decile", term)) %>%
+      mutate(decile = 2:10) %>%
+      bind_rows(
+        tibble(
+          decile = 1,
+          estimate = 1,
+          conf.low = 1,
+          conf.high = 1)) %>%
+      arrange(decile)})
+
 ggthemr("fresh")
-p <-
-	ggplot(for_plot, aes(x = wave, y = value, group = 1, color = wave)) +
-		geom_line(size = 1.2, color = "#e0e0e0") +
-		geom_point(size = 1.5) +
-		geom_text(
-			aes(label = sprintf("%.2f", value)),
-			vjust = -0.8,
-			hjust = -0.2,
-			size = 3.5,
-			fontface = "bold") +
-		facet_wrap(~predictor, scales = "free_y", ncol = 1) +
-		scale_x_discrete(
-			expand = expansion(mult = c(0.05, 0.20))) +
-		scale_y_continuous(
-			breaks = function(x) seq(min(x), max(x), length.out = 4),
-			labels = \(x) sprintf("%.2f", x),
-			expand = expansion(mult = c(0.08, 0.15))) +
-		coord_cartesian(clip = "off") +
-		labs(x = "Wave", y = "Predictor") +
-		theme_publish(base_size = 12) +
-		theme(
-			panel.grid.major.y = element_line(
-				color = "grey90",
-				linetype = "dashed",
-				linewidth = 0.2),
-				axis.line = element_line(linewidth = 0.2),
-				plot.title = element_text(face = "bold", size = 14),
-				plot.subtitle = element_text(size = 11, color = "grey40"),
-				plot.margin = margin(10, 30, 10, 10),
-				legend.position = "none")
+# -----------------------
+# All dataset
+# -----------------------
 
-# save panel A file
+ylims <- c(
+  min(
+    models$w0$conf.low,
+    models$w1$conf.low,
+    models$w2$conf.low,
+    na.rm = TRUE),
+  max(
+    models$w0$conf.high,
+    models$w1$conf.high,
+    models$w2$conf.high,
+    na.rm = TRUE))
+
+p1 <-
+	ggplot(models$w0, aes(x = decile, y = estimate)) +
+		geom_hline(yintercept = 1, linetype = "dashed", color = "grey", linewidth = 0.3) +
+		geom_line(color = "#4e4e4e") +
+		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#65acc2a1", width = 0, linewidth = 0.3) +
+		geom_point(size = 2, color = "#65ADC2") +
+		coord_cartesian(ylim = ylims) +
+		scale_y_continuous(n.breaks = 7) +
+		scale_x_continuous(
+			breaks = 1:10,
+			labels = c(
+				"1st", "2nd", "3rd", "4th", "5th",
+				"6th", "7th", "8th", "9th", "10th")) +
+		theme_publish(base_size = 10) +
+		labs(x = "", y = "") +
+		theme_publish()
+
+p2 <-
+	ggplot(models$w1, aes(x = decile, y = estimate)) +
+		geom_hline(yintercept = 1, linetype = "dashed", color = "grey", linewidth = 0.3) +
+		geom_line(color = "#4e4e4e") +
+		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#233b4394", width = 0, linewidth = 0.3) +
+		geom_point(size = 2, color = "#233B43") +
+		coord_cartesian(ylim = ylims) +
+		scale_y_continuous(n.breaks = 7) +
+		scale_x_continuous(
+			breaks = 1:10,
+			labels = c(
+				"1st", "2nd", "3rd", "4th", "5th",
+				"6th", "7th", "8th", "9th", "10th")) +
+		theme_publish(base_size = 10) +
+		labs(x = "", y = "Odds Ratio") +
+		theme_publish()
+
+p3 <-
+	ggplot(models$w2, aes(x = decile, y = estimate)) +
+		geom_hline(yintercept = 1, linetype = "dashed", color = "grey", linewidth = 0.3) +
+		geom_line(color = "#4e4e4e") +
+		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#e84646a2", width = 0, linewidth = 0.3) +
+		geom_point(size = 2, color = "#E84646") +
+		coord_cartesian(ylim = ylims) +
+		scale_y_continuous(n.breaks = 7) +
+		scale_x_continuous(
+			breaks = 1:10,
+			labels = c(
+				"1st", "2nd", "3rd", "4th", "5th",
+				"6th", "7th", "8th", "9th", "10th")) +
+		theme_publish(base_size = 10) +
+		labs(x = "PRS risk strata", y = "") +
+		theme_publish()
+
+final <- p1 / p2 / p3 + plot_annotation(tag_levels = "A")
+
 ggsave(
 	"fig3_panelC.png",
-	p,
 	device = "png",
 	units = "cm",
 	width = 10,
-	height = 10,
+	height = 17,
 	dpi = 400,
 	bg = "white")

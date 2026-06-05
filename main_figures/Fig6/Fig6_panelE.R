@@ -1,4 +1,4 @@
-pacman::p_load(dplyr, data.table, ggplot2, envalysis, tidyr, patchwork, ggsurvfit, survminer, survival)
+pacman::p_load(dplyr, data.table, ggplot2, envalysis, tidyr, patchwork, ggsurvfit, survminer, png, survival)
 
 # https://rpkgs.datanovia.com/survminer/survminer_cheatsheet.pdf
 data <- readRDS("E:/cass_BHRC_28042025_ARTICLE.RDS")
@@ -78,7 +78,7 @@ str(with_entry)
 survival_data <-
   rbind(with_entry, without_entry) %>%
   inner_join(., select(database, IID, any_hist, site, percentile, gender, site), by = "IID") %>%
-  filter(gender == "Female") %>%
+  filter(gender == "Male") %>%
   select(-IID, -gender) %>%
   data.frame()
 
@@ -103,7 +103,7 @@ do.call(rbind, res)
 # all data
 surv <-
   ggsurvplot(
-    fit,                                      # objeto com a função
+    fit,                                     # objeto com a função
     data = survival_data,                     # objeto criador da função
     fun = "event",                            # função de transformação da curva de sobrevivência
     xlab = "Age (yr)",                        # titulo do eixo x
@@ -116,13 +116,13 @@ surv <-
 p1 <-
   surv$plot +
   scale_color_manual(values = c("90th" = "#670D2F", "else" = "#c4c4c470", "10th" = "#129990")) +
-  scale_y_continuous(n.breaks = 7, limits = c(0, 0.15), labels = function(y) sprintf("%.2f", y)) +
+  scale_y_continuous(n.breaks = 8, limits = c(0, 0.3)) +
   scale_x_continuous(limits = c(0, 25), breaks = c(0, 5, 10, 12, 15, 20, 25)) +
-  geom_segment(aes(x = 12, xend = 12, y = 0, yend = 0.106), color = "black", linetype = "solid", size = 0.2) +
-  geom_point(aes(x = 12, y = 0.096), color = "#670D2F", size = 1) +
-  geom_point(aes(x = 12, y = 0.106), color = "#129990", size = 1) +
-  geom_text(aes(x = 12.5, y = 0.08, label = "9.64%"), color = "#670D2F", size = 2.5, hjust = -0.1) +
-  geom_text(aes(x = 9.3, y = 0.12, label = "10.6%"), color = "#129990", size = 2.5, hjust = -0.1) +
+  geom_segment(aes(x = 12, xend = 12, y = 0, yend = 0.152), color = "black", linetype = "solid", size = 0.2) +
+  geom_point(aes(x = 12, y = 0.152), color = "#670D2F", size = 1) +
+  geom_point(aes(x = 12, y = 0.062), color = "#129990", size = 1) +
+  geom_text(aes(x = 9.3, y = 0.18, label = "15%"), color = "#670D2F", size = 2.5, hjust = -0.1) +
+  geom_text(aes(x = 12.5, y = 0.05, label = "6.7%"), color = "#129990", size = 2.5, hjust = -0.1) +
   labs(y = "Cumulative event probability", x = "Age (yr)") +
   theme_publish(base_size = 7) +
   theme(
@@ -130,6 +130,6 @@ p1 <-
     panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.2))
 
 ggsave(
-  "Fig2_panelC.png", p1, device = "png",
+  "Fig6_panelE.png", p1, device = "png",
   width = 90, height = 50, units = c("mm"),
   dpi = 300, bg = "white")

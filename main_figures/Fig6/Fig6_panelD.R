@@ -159,6 +159,6 @@ final <-
     facet_wrap(~ group, nrow = 1, strip.position = "top", scales = "free_x")
 
 ggsave(
-  "Fig2_panelD.png", final, device = "png",
+  "Fig6_panelD.png", final, device = "png",
   width = 100, height = 60, units = "mm",
   dpi = 300, bg = "white")

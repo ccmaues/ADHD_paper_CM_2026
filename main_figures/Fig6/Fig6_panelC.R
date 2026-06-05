@@ -1,4 +1,4 @@
-pacman::p_load(dplyr, data.table, ggplot2, envalysis, tidyr, patchwork, ggsurvfit, survminer, png, survival)
+pacman::p_load(dplyr, data.table, ggplot2, envalysis, tidyr, patchwork, ggsurvfit, survminer, survival)
 
 # https://rpkgs.datanovia.com/survminer/survminer_cheatsheet.pdf
 data <- readRDS("E:/cass_BHRC_28042025_ARTICLE.RDS")
@@ -9,16 +9,16 @@ database <-
 		W1 = ifelse(W1 == 2, 1, 0),
 		W2 = ifelse(W2 == 2, 1, 0))
 
-# Family history
-hist <-
-  data$family_history %>%
-  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
-
 # PCA
 all_pcs <-
   data$PCA_all_samples %>%
   inner_join(., select(database, IID, PRS), by = "IID") %>%
   select(-FID)
+
+# Family history
+hist <-
+  data$family_history %>%
+  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
 
 # PRS correction
 shapiro.test(all_pcs$PRS)
@@ -77,11 +77,12 @@ str(with_entry)
 
 survival_data <-
   rbind(with_entry, without_entry) %>%
-  inner_join(., select(database, any_hist, IID, site, percentile, gender, site), by = "IID") %>%
-  select(-IID) %>%
+  inner_join(., select(database, IID, any_hist, site, percentile, gender, site), by = "IID") %>%
+  filter(gender == "Female") %>%
+  select(-IID, -gender) %>%
   data.frame()
 
-cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + gender + site, data = survival_data)
+cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + site, data = survival_data)
 fit <- survfit(cox)
 
 # Get event prob at 12 yr
@@ -102,7 +103,7 @@ do.call(rbind, res)
 # all data
 surv <-
   ggsurvplot(
-    fit,                                     # objeto com a função
+    fit,                                      # objeto com a função
     data = survival_data,                     # objeto criador da função
     fun = "event",                            # função de transformação da curva de sobrevivência
     xlab = "Age (yr)",                        # titulo do eixo x
@@ -115,13 +116,13 @@ surv <-
 p1 <-
   surv$plot +
   scale_color_manual(values = c("90th" = "#670D2F", "else" = "#c4c4c470", "10th" = "#129990")) +
-  scale_y_continuous(n.breaks = 8, limits = c(0, 0.18), labels = function(y) sprintf("%.2f", y)) +
+  scale_y_continuous(n.breaks = 7, limits = c(0, 0.15), labels = function(y) sprintf("%.2f", y)) +
   scale_x_continuous(limits = c(0, 25), breaks = c(0, 5, 10, 12, 15, 20, 25)) +
-  geom_segment(aes(x = 12, xend = 12, y = 0, yend = 0.092), color = "black", linetype = "solid", size = 0.2) +
-  geom_point(aes(x = 12, y = 0.09), color = "#670D2F", size = 1) +
-  geom_point(aes(x = 12, y = 0.059), color = "#129990", size = 1) +
-  geom_text(aes(x = 9, y = 0.10, label = "9.27%"), color = "#670D2F", size = 2.5, hjust = -0.1) +
-  geom_text(aes(x = 12.5, y = 0.05, label = "5.78%"), color = "#129990", size = 2.5, hjust = -0.1) +
+  geom_segment(aes(x = 12, xend = 12, y = 0, yend = 0.106), color = "black", linetype = "solid", size = 0.2) +
+  geom_point(aes(x = 12, y = 0.096), color = "#670D2F", size = 1) +
+  geom_point(aes(x = 12, y = 0.106), color = "#129990", size = 1) +
+  geom_text(aes(x = 12.5, y = 0.08, label = "9.64%"), color = "#670D2F", size = 2.5, hjust = -0.1) +
+  geom_text(aes(x = 9.3, y = 0.12, label = "10.6%"), color = "#129990", size = 2.5, hjust = -0.1) +
   labs(y = "Cumulative event probability", x = "Age (yr)") +
   theme_publish(base_size = 7) +
   theme(
@@ -129,6 +130,6 @@ p1 <-
     panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.2))
 
 ggsave(
-  "Fig2_panelA.png", p1, device = "png",
-  width = 100, height = 60, units = c("mm"),
+  "Fig6_panelC.png", p1, device = "png",
+  width = 90, height = 50, units = c("mm"),
   dpi = 300, bg = "white")
