@@ -1,5 +1,5 @@
 # Odds ratio of ADHD diagnosis per wave predicted by the calculated PRS
-# decile (all, females, males)
+# all samples
 pacman::p_load(dplyr, broom, flextable, gtsummary)
 
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")

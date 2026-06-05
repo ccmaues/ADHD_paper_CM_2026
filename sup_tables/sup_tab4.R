@@ -4,9 +4,15 @@ pacman::p_load(dplyr, tidyr, nsROC, PRROC, DescTools, purrr, gt)
 
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 
+# Family history
+hist <- data$family_history %>%
+  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0)) %>%
+	select(IID, any_hist)
+
 # Proband data
 database <-
   data$proband_data %>% # latest version
+  inner_join(., hist, by = "IID") %>%
  	mutate(across(c(W0, W1, W2), ~ifelse(.x == 2, 1, 0)))
 
 datasets <- list(
@@ -33,9 +39,9 @@ correct_prs <- function(df) {
 get_metrics <- function(wave, df, sex_adjust = TRUE) {
   age_var <- paste0("age_", wave)
   formula <- if (sex_adjust) {
-    as.formula(paste0(wave, " ~ PRS + gender + ", age_var))
+    as.formula(paste0(wave, " ~ PRS + any_hist + gender + ", age_var))
   } else {
-    as.formula(paste0(wave, " ~ PRS + ", age_var))}
+    as.formula(paste0(wave, " ~ PRS + any_hist + ", age_var))}
   model <- glm(formula, family = "binomial", data = df)
   r2 <- as.numeric(PseudoR2(model, which = "Nagelkerke"))
   auroc <- as.numeric(gROC(X = df$PRS, D = df[[wave]], pvac.auc = TRUE, side = "auto")$auc)

@@ -1,5 +1,5 @@
-pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, patchwork, stringr)
-options(scipen = 999) # disable scientific notation
+# figure 5 - part 1 - table
+pacman::p_load(dplyr, flextable)
 
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 database <-
@@ -23,10 +23,6 @@ database <- cbind(select(database, -PRS), PRS = new_PRS)
 females <- filter(database, gender == "Female")
 males <- filter(database, gender == "Male")
 
-## We used the original PRS for the risk estimation here
-## Higher sample size should be used for quantile
-## In this one we just want to see the pattern of the first column
-## thus, we use its adjusted PRS
 calc_prev <- function(data, n, column_name, wave) {
   df <-
     select(data, all_of(column_name), wave) %>%
@@ -126,98 +122,22 @@ males_long <-
 		diagnosis = factor(diagnosis, levels = c(0, 1)),
 		risk = factor(risk, levels = c(1, 2, 3, 4, 5)))
 
-new_x_axis <- c("1st", "2nd", "3rd", "4th", "5th")
-ggthemr("fresh")
-
-p1 <-
-	ggplot(for_plot_overall, aes(ntile, prevalence * 100, color = wave, group = wave)) +
-		geom_line(linetype = "solid", linewidth = 1, alpha = 0.5) +
-		geom_point(size = 4) +
-		scale_x_discrete(labels = new_x_axis) +
-		scale_y_continuous(n.breaks = 10, limits = c(5, 30)) +
-		theme_publish(base_size = 12) +
-		labs(
-			y = "Prevalence",
-			x = "") +
-    theme(
-      legend.position = "none",
-      axis.title.x = element_blank(),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.line.x = element_blank(),
-	  panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.3))
-
-p2 <-
-	ggplot(for_plot_male, aes(ntile, prevalence * 100, color = wave, group = wave)) +
-		geom_line(linetype = "solid", linewidth = 1, alpha = 0.5) +
-		geom_point(size = 4) +
-		scale_x_discrete(labels = new_x_axis) +
-		scale_y_continuous(n.breaks = 10, limits = c(5, 30)) +
-		theme_publish(base_size = 12) +
-		labs(y = "", x = "", color = "") +
-    theme(
-      legend.position = "top",
-      axis.title.x = element_blank(),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.line.x = element_blank(),
-	  panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.3))
-
-p3 <-
-	ggplot(for_plot_female, aes(ntile, prevalence * 100, color = wave, group = wave)) +
-		geom_line(linetype = "solid", linewidth = 1, alpha = 0.5) +
-		geom_point(size = 4) +
-		scale_x_discrete(labels = new_x_axis) +
-		scale_y_continuous(n.breaks = 10, limits = c(5, 30)) +
-		theme_publish(base_size = 12) +
-		labs(
-			y = "",
-			x = "") +
-    theme(
-      legend.position = "none",
-      axis.title.x = element_blank(),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.line.x = element_blank(),
-	  panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.3))
-
-## Delta plots
-p6 <-
-	ggplot(all_plot_delta, aes(ntile, delta * 100)) +
-		geom_col(fill = "#129990") +
-		scale_x_discrete(labels = new_x_axis) +
-		scale_y_continuous(n.breaks = 7, limits = c(0, 10)) +
-    labs(x = "", y = "\u0394 Prevalence") +
-    theme_publish(base_size = 12)
-
-p7 <-
-	ggplot(male_plot_delta, aes(ntile, delta * 100)) +
-		geom_col(fill = "#129990") +
-		scale_x_discrete(labels = new_x_axis) +
-		scale_y_continuous(n.breaks = 7, limits = c(0, 10)) +
-    labs(x = "PRS quintile", y = "") +
-    theme_publish(base_size = 12)
-
-p8 <-
-	ggplot(female_plot_delta, aes(ntile, delta * 100)) +
-		geom_col(fill = "#129990") +
-		scale_x_discrete(labels = new_x_axis) +
-		scale_y_continuous(n.breaks = 7, limits = c(0, 10)) +
-    labs(y = "", x = "") +
-    theme_publish(base_size = 12)
-
 final <-
-  ((p1 / p6 + plot_layout(heights = c(1, 0.5))) |
-   (p2 / p7 + plot_layout(heights = c(1, 0.5))) |
-   (p3 / p8 + plot_layout(heights = c(1, 0.5)))) +
-  plot_annotation(tag_levels = "A")
+  bind_rows(
+    mutate(plyr::join_all(list(p1, p2, p3), by = "ntile"), cohort = "All"),
+    mutate(plyr::join_all(list(p1_male, p2_male, p3_male), by = "ntile"), cohort = "Male"),
+    mutate(plyr::join_all(list(p1_fem, p2_fem, p3_fem), by = "ntile"), cohort = "Female")) %>%
+  mutate(across(starts_with("W"), ~ round(.x * 100, 2)), ntile = factor(ntile, levels = 1:5, labels = c("1st", "2nd", "3rd", "4th", "5th"))) %>%
+  relocate(cohort, ntile) %>%
+	mutate(delta = round((W2 - W0), 2)) %>%
+	rename(`Δ W0–W2` = delta) %>%
+  flextable::flextable() %>%
+  flextable::bold(part = "header") %>%
+  flextable::align(part = "all", align = "center") %>%
+	flextable::add_header_row(
+  values = c("", "", "Prevalence (%)", ""),
+  colwidths = c(1, 1, 3, 1))
 
-ggsave(
-  "Fig1_part1.png",
-  final,
-  device = "png",
-  width = 30,
-  height = 15,
-  units = "cm",
-  dpi = 300,
-  bg = "white")
+flextable::save_as_docx(
+  "Supplementary Table S17" = final,
+  path = "sup_tab17.docx")

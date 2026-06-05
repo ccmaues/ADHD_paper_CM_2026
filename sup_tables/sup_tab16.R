@@ -1,5 +1,5 @@
-# Prediction over time
-pacman::p_load(dplyr, data.table, tidyr, DescTools, nsROC, PRROC, envalysis, ggplot2, ggthemr, patchwork)
+# Figure 5 - part 2 - table
+pacman::p_load(dplyr, tidyr, DescTools, flextable)
 
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 database <- data$proband_data %>% # latest version
@@ -98,50 +98,28 @@ fp3 <-
       PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 4 & gender == "Female")), which = "Nagelkerke"),
       PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 5 & gender == "Female")), which = "Nagelkerke")))
 
-new_x_axis <- c("1st", "2nd", "3rd", "4th", "5th")
+tab_all <-
+  fp1 %>%
+  mutate(cohort = "All")
 
-p1 <-
-  ggplot(fp1, aes(risk, R2 * 100, fill = wave, color = wave, group = wave)) +
-    geom_col(position = position_dodge(width = 0.8), width = 0.6) +
-    scale_y_continuous(n.breaks = 8, limits = c(0, 20)) +
-    scale_x_discrete(labels = new_x_axis) +
-    labs(y = "Pseudo-R²", x = "PRS quintile") +
-    theme_publish(base_size = 12) +
-    theme(
-      legend.position = "none",
-      panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.2))
+tab_male <-
+  fp2 %>%
+  mutate(cohort = "Male")
 
-p2 <-
-  ggplot(fp2, aes(risk, R2 * 100, fill = wave, color = wave, group = wave)) +
-    geom_col(position = position_dodge(width = 0.8), width = 0.6) +
-    scale_y_continuous(n.breaks = 8, limits = c(0, 20)) +
-    scale_x_discrete(labels = new_x_axis) +
-    labs(y = "", x = "PRS quintile") +
-    theme_publish(base_size = 12) +
-    theme(
-      legend.position = "bottom",
-      legend.title = element_blank(),
-      panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.2))
+tab_female <-
+  fp3 %>%
+  mutate(cohort = "Female")
 
-p3 <-
-  ggplot(fp3, aes(risk, R2 * 100, fill = wave, color = wave, group = wave)) +
-    geom_col(position = position_dodge(width = 0.8), width = 0.6) +
-    scale_y_continuous(n.breaks = 8, limits = c(0, 20)) +
-    scale_x_discrete(labels = new_x_axis) +
-    labs(y = "", x = "PRS quintile") +
-    theme_publish(base_size = 12) +
-    theme(
-      legend.position = "none",
-      panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.2))
-
-final <- p1 + p2 + p3 + plot_annotation(tag_levels = "A")
-
-ggsave(
-  "Fig5_part2.png",
-  final,
-  device = "png",
-  width = 30,
-  height = 7,
-  units = "cm",
-  dpi = 400,
-  bg = "white")
+final <-
+  bind_rows(tab_all, tab_male, tab_female) %>%
+  mutate(R2 = round(R2 * 100, 2)) %>%
+  pivot_wider(names_from = risk, values_from = R2, names_prefix = "Q") %>%
+  relocate(cohort, wave) %>%
+  flextable::flextable() %>%
+  flextable::bold(part = "header") %>%
+  flextable::align(part = "all", align = "center") %>%
+  flextable::autofit()
+	
+flextable::save_as_docx(
+  "Supplementary Table S16" = final,
+  path = "sup_tab16.docx")
