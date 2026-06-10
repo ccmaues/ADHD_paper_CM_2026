@@ -1,5 +1,5 @@
 pacman::p_load(dplyr, data.table, tidyr)
-
+# https://rpkgs.datanovia.com/survminer/survminer_cheatsheet.pdf
 data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS") # latest version
 database <-
   data$proband_data %>%
