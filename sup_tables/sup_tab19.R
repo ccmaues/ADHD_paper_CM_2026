@@ -1,83 +1,131 @@
-# Odds ratio of ADHD diagnosis per wave predicted by the calculated PRS
-# females and males
-pacman::p_load(dplyr, broom, flextable, gtsummary)
+# survival model
+pacman::p_load(envalysis, purrr, tibble, dplyr)
+source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+hist <-
+  readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")$family_history %>%
+  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
 
-# Family history
-hist <- data$family_history %>%
-  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0)) %>%
-	select(IID, any_hist)
+wd <-
+  inner_join(survival_data, hist, by = "IID") %>%
+  select(-IID)
 
-females <-
-	data$proband_data %>% # latest version
-	inner_join(., hist, by = "IID") %>%
-	mutate(
-		W0 = ifelse(W0 == 2, 1, 0),
-		W1 = ifelse(W1 == 2, 1, 0),
-		W2 = ifelse(W2 == 2, 1, 0),
-		across(c(W0, W1, W2), as.numeric)) %>%
-	inner_join(., data$PCA_by_sex, by = "IID") %>%
-	filter(gender == "Female")
+## Cox-regression
+# NUll
+cox1 <- coxph(Surv(time, status) ~ strata(percentile), data = filter(wd, gender == "Male"))
+cox2 <- coxph(Surv(time, status) ~ strata(percentile) + site, data = filter(wd, gender == "Male"))
+cox3 <- coxph(Surv(time, status) ~ strata(percentile) + any_hist, data = filter(wd, gender == "Male"))
+cox4 <- coxph(Surv(time, status) ~ strata(percentile) + site + any_hist, data = filter(wd, gender == "Male"))
 
-males <-
-	data$proband_data %>% # latest version
-	inner_join(., hist, by = "IID") %>%
-	mutate(
-		W0 = ifelse(W0 == 2, 1, 0),
-		W1 = ifelse(W1 == 2, 1, 0),
-		W2 = ifelse(W2 == 2, 1, 0),
-		across(c(W0, W1, W2), as.numeric)) %>%
-	inner_join(., data$PCA_by_sex, by = "IID") %>%
-	filter(gender == "Male")
+models <- list(
+  "Stratified baseline" = cox1,
+  "+ Site" = cox2,
+  "+ Family history" = cox3,  
+  "+ Site + Family history" = cox4)
 
-# PCA + PRS
-new_PRS_fem <- residuals(glm(
-	PRS ~ PC1 + PC2 + PC3 + PC4,
-	family = "gaussian",
-	data = females))
+comparison_table <-
+  imap_dfr(models, ~{
+    s <- summary(.x)
+    tibble(
+      Model = .y,
+      Parameters = length(coef(.x)),
+      logLik = as.numeric(logLik(.x)),
+      AIC = AIC(.x),
+      Concordance = s$concordance[1])}) %>%
+  mutate(delta_AIC = AIC - min(AIC))
 
-new_PRS_man <- residuals(glm(
-	PRS ~ PC1 + PC2 + PC3 + PC4,
-	family = "gaussian",
-	data = males))
+lrt_site <- anova(cox1, cox2, test = "LRT")
+lrt_hist <- anova(cox1, cox3, test = "LRT")
+lrt_site_hist <- anova(cox1, cox4, test = "LRT")
 
-# Working data
-wd <- list(
-	fem = cbind(select(females, -PRS), PRS = new_PRS_fem),
-	man = cbind(select(males, -PRS), PRS = new_PRS_man))
+lrt_table <- tibble(
+  Model = c(
+    "Stratified baseline",
+    "+ Site",
+    "+ Family history",
+    "+ Site + Family history"),
+  LRT_ChiSq = c(
+    NA,
+    lrt_site$Chisq[2],
+    lrt_hist$Chisq[2],
+    lrt_site_hist$Chisq[2]),
+  LRT_p = c(
+    NA,
+    lrt_site$`Pr(>|Chi|)`[2],
+    lrt_hist$`Pr(>|Chi|)`[2],
+    lrt_site_hist$`Pr(>|Chi|)`[2]))
 
-str(wd)
+final <-
+  comparison_table %>%
+  left_join(lrt_table, by = "Model") %>%
+  relocate(Model) %>%
+  mutate(across(c(logLik, AIC, delta_AIC, Concordance, LRT_ChiSq), ~ round(.x, 3)),
+    LRT_p = scales::pvalue(LRT_p)) %>%
+    flextable::flextable() %>%
+    flextable::bold(part = "header") %>%
+    flextable::align(part = "all", align = "center") %>%
+    flextable::theme_booktabs() %>%
+    flextable::autofit()
 
-# models
-fw0 <- glm(W0 ~ PRS + age_W0 + any_hist + site, family = "binomial", data = wd$fem)
-fw1 <- glm(W1 ~ PRS + age_W1 + any_hist + site, family = "binomial", data = wd$fem)
-fw2 <- glm(W2 ~ PRS + age_W2 + any_hist + site, family = "binomial", data = wd$fem)
-
-mw0 <- glm(W0 ~ PRS + age_W0 + any_hist + site, family = "binomial", data = wd$man)
-mw1 <- glm(W1 ~ PRS + age_W1 + any_hist + site, family = "binomial", data = wd$man)
-mw2 <- glm(W2 ~ PRS + age_W2 + any_hist + site, family = "binomial", data = wd$man)
-
-final <- tbl_merge(
-  tbls = list(
-    tbl_regression(fw0, exponentiate = TRUE, intercept = TRUE),
-    tbl_regression(fw1, exponentiate = TRUE, intercept = TRUE),
-    tbl_regression(fw2, exponentiate = TRUE, intercept = TRUE)),
-  tab_spanner = c("**W0**", "**W1**", "**W2**")) %>%
-  as_flex_table()
-
-save_as_docx(
-  "Supplementary Table S19_part1" = final,
+flextable::save_as_docx(
+  "Supplementary Table S19_pt1_males" = final,
   path = "sup_tab19_part1.docx")
 
-final <- tbl_merge(
-  tbls = list(
-    tbl_regression(mw0, exponentiate = TRUE, intercept = TRUE),
-    tbl_regression(mw1, exponentiate = TRUE, intercept = TRUE),
-    tbl_regression(mw2, exponentiate = TRUE, intercept = TRUE)),
-  tab_spanner = c("**W0**", "**W1**", "**W2**")) %>%
-  as_flex_table()
+cox1 <- coxph(Surv(time, status) ~ strata(percentile), data = filter(wd, gender == "Female"))
+cox2 <- coxph(Surv(time, status) ~ strata(percentile) + site, data = filter(wd, gender == "Female"))
+cox3 <- coxph(Surv(time, status) ~ strata(percentile) + any_hist, data = filter(wd, gender == "Female"))
+cox4 <- coxph(Surv(time, status) ~ strata(percentile) + site + any_hist, data = filter(wd, gender == "Female"))
 
-save_as_docx(
-  "Supplementary Table S19_part2" = final,
+models <- list(
+  "Stratified baseline" = cox1,
+  "+ Site" = cox2,
+  "+ Family history" = cox3,  
+  "+ Site + Family history" = cox4)
+
+comparison_table <-
+  imap_dfr(models, ~{
+    s <- summary(.x)
+    tibble(
+      Model = .y,
+      Parameters = length(coef(.x)),
+      logLik = as.numeric(logLik(.x)),
+      AIC = AIC(.x),
+      Concordance = s$concordance[1])}) %>%
+  mutate(delta_AIC = AIC - min(AIC))
+
+lrt_site <- anova(cox1, cox2, test = "LRT")
+lrt_hist <- anova(cox1, cox3, test = "LRT")
+lrt_site_hist <- anova(cox1, cox4, test = "LRT")
+
+lrt_table <- tibble(
+  Model = c(
+    "Stratified baseline",
+    "+ Site",
+    "+ Family history",
+    "+ Site + Family history"),
+  LRT_ChiSq = c(
+    NA,
+    lrt_site$Chisq[2],
+    lrt_hist$Chisq[2],
+    lrt_site_hist$Chisq[2]),
+  LRT_p = c(
+    NA,
+    lrt_site$`Pr(>|Chi|)`[2],
+    lrt_hist$`Pr(>|Chi|)`[2],
+    lrt_site_hist$`Pr(>|Chi|)`[2]))
+
+final <-
+  comparison_table %>%
+  left_join(lrt_table, by = "Model") %>%
+  relocate(Model) %>%
+  mutate(across(c(logLik, AIC, delta_AIC, Concordance, LRT_ChiSq), ~ round(.x, 3)),
+    LRT_p = scales::pvalue(LRT_p)) %>%
+    flextable::flextable() %>%
+    flextable::bold(part = "header") %>%
+    flextable::align(part = "all", align = "center") %>%
+    flextable::theme_booktabs() %>%
+    flextable::autofit()
+
+flextable::save_as_docx(
+  "Supplementary Table S19_pt2_females" = final,
   path = "sup_tab19_part2.docx")

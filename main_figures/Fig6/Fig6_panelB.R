@@ -1,7 +1,7 @@
 pacman::p_load(data.table, ggplot2, ggthemr, envalysis, tidyverse, broom, patchwork)
 options(scipen = 999) # disable scientific notation
 
-data <- readRDS("/media/santorolab/C207-3566/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 database <- data$proband_data %>% # latest version
 	mutate(
 		W0 = ifelse(W0 == 2, 1, 0),

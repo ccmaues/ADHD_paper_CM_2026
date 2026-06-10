@@ -1,7 +1,7 @@
 pacman::p_load(dplyr, data.table, ggplot2, envalysis, tidyr, patchwork, ggsurvfit, survminer, png, survival)
 
 # https://rpkgs.datanovia.com/survminer/survminer_cheatsheet.pdf
-data <- readRDS("E:/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
 database <-
   data$proband_data %>% # latest version
 	mutate(

@@ -78,6 +78,6 @@ str(with_entry)
 survival_data <-
   rbind(with_entry, without_entry) %>%
   inner_join(., select(database, IID, site, percentile, gender, site), by = "IID") %>%
-  select(-IID) %>%
+  # select(-IID) %>%
   data.frame()
 str(survival_data)

@@ -1,18 +1,29 @@
 # survival model
 pacman::p_load(envalysis, purrr, tibble, dplyr)
 source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
+
+hist <-
+  readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")$family_history %>%
+  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
+
+wd <-
+  inner_join(survival_data, hist, by = "IID") %>%
+  select(-IID)
+
 ## Cox-regression
 # NUll
-cox1 <- coxph(Surv(time, status) ~ strata(percentile), data = survival_data)
-cox2 <- coxph(Surv(time, status) ~ strata(percentile) + site, data = survival_data)
-cox3 <- coxph(Surv(time, status) ~ strata(percentile) + gender, data = survival_data)
-cox4 <- coxph(Surv(time, status) ~ strata(percentile) + gender + site, data = survival_data)
+cox1 <- coxph(Surv(time, status) ~ strata(percentile), data = wd)
+cox2 <- coxph(Surv(time, status) ~ strata(percentile) + site, data = wd)
+cox3 <- coxph(Surv(time, status) ~ strata(percentile) + gender, data = wd)
+cox4 <- coxph(Surv(time, status) ~ strata(percentile) + gender + site, data = wd)
+cox5 <- coxph(Surv(time, status) ~ strata(percentile) + gender + site + any_hist, data = wd)
 
 models <- list(
   "Stratified baseline" = cox1,
   "+ Site" = cox2,
   "+ Gender" = cox3,
-  "+ Site + Gender" = cox4)
+  "+ Site + Gender" = cox4,
+  "+ Site + Gender + Family history" = cox5)
 
 comparison_table <-
   imap_dfr(models, ~{
@@ -25,26 +36,30 @@ comparison_table <-
       Concordance = s$concordance[1])}) %>%
   mutate(delta_AIC = AIC - min(AIC))
 
-lrt_site   <- anova(cox1, cox2, test = "LRT")
+lrt_site <- anova(cox1, cox2, test = "LRT")
 lrt_gender <- anova(cox1, cox3, test = "LRT")
-lrt_both   <- anova(cox1, cox4, test = "LRT")
+lrt_site_gender <- anova(cox1, cox4, test = "LRT")
+lrt_site_gender_hist <- anova(cox1, cox5, test = "LRT")
 
 lrt_table <- tibble(
   Model = c(
     "Stratified baseline",
     "+ Site",
     "+ Gender",
-    "+ Site + Gender"),
+    "+ Site + Gender",
+    "+ Site + Gender + Family history"),
   LRT_ChiSq = c(
     NA,
     lrt_site$Chisq[2],
     lrt_gender$Chisq[2],
-    lrt_both$Chisq[2]),
+    lrt_site_gender$Chisq[2],
+    lrt_site_gender_hist$Chisq[2]),
   LRT_p = c(
     NA,
     lrt_site$`Pr(>|Chi|)`[2],
     lrt_gender$`Pr(>|Chi|)`[2],
-    lrt_both$`Pr(>|Chi|)`[2]))
+    lrt_site_gender$`Pr(>|Chi|)`[2],
+    lrt_site_gender_hist$`Pr(>|Chi|)`[2]))
 
 final <-
   comparison_table %>%
