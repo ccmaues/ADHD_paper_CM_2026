@@ -12,31 +12,39 @@ wd <-
 
 # the only difference, is that I have put the percentile
 # out of the strata function and added the family_history
-all <-
+females <-
   tidy(
-    coxph(Surv(time, status) ~ percentile + gender + site + any_hist, data = wd),
+    coxph(Surv(time, status) ~ percentile + site + any_hist, data = filter(wd, gender == "Female")),
     exponentiate = TRUE,
     conf.int = TRUE) %>%
-  mutate(group = "Overall")
+  mutate(group = "Females")
+males <-
+  tidy(
+    coxph(Surv(time, status) ~ percentile + site + any_hist, data = filter(wd, gender == "Male")),
+    exponentiate = TRUE,
+    conf.int = TRUE) %>%
+  mutate(group = "Males")
 
 for_plot_HR <-
-  all %>%
+  rbind(females, males) %>%
   mutate(
     term = recode(
       term,
-      "genderMale" = "Gender",
       "siteRS" = "Site",
-      "any_hist" = "Family history",
+      "any_hist" = "W/ history",
       "percentile90th" = "90th"),
     stars = case_when(
       p.value < 0.001 ~ "***",
       p.value < 0.01 ~ "**",
       p.value < 0.05 ~ "*",
       TRUE ~ ""),
+    data = "all",
     estimate = round(estimate, 2),
     CI = paste0(round(conf.low, 2), "—", round(conf.high, 2), stars)) %>%
-  filter(term %in% c("Gender", "90th", "Family history")) %>%
-  mutate(term = factor(term, levels = c("90th", "Family history", "Gender")))
+  filter(term %in% c("90th", "W/ history")) %>%
+  mutate(
+    term = factor(term, levels = c("90th", "W/ history")),
+    group = factor(group, levels = c("Males", "Females")))
 
 ggthemr("grape")
 
@@ -46,32 +54,38 @@ final <-
       aes(ymin = conf.low, ymax = conf.high),
       width = 0.5,
       position = position_dodge(width = 1)) +
-    geom_col(width = 0.7) +
+    geom_col() +
+    # change for the bottom of the bar
     geom_text(
-      aes(y = conf.high + 0.2, label = stars),
+      aes(
+        label = estimate,
+        hjust = 0.5,
+        vjust = 1.5),
+      color = "white",
+      size = 3) +
+    geom_text(
+      aes(y = conf.high + 1, label = stars),
       position = position_dodge(width = 0.7),
       vjust = 0.7,
-      size = 7,
+      size = 5,
       show.legend = FALSE,
       angle = 90) +
-    scale_y_continuous(n.breaks = 8) +
+    scale_y_continuous(limits = c(0, 6)) +
+    # scale_x_discrete(drop = TRUE) +
     labs(y = "Harzard Ratio", x = "") +
-    theme_publish(base_size = 15) +
+    theme_publish(base_size = 7) +
     theme(
-      legend.position = "none",
-      panel.grid.major.y = element_line(
-				color = "grey90",
-				linetype = "dashed",
-				linewidth = 0.4),
-      axis.line.x = element_line(linewidth = 0.5),
-      axis.line.y = element_line(linewidth = 0.5))
+      legend.position = "top",
+      axis.text.x = element_blank(),
+      axis.ticks.x = element_blank(),
+      strip.text.x = element_blank(),
+      legend.title = element_blank()) +
+    facet_wrap(~ group, nrow = 1, strip.position = "top", scales = "free_x")
 
 ggsave(
-  "Fig6_panelB.png",
+  "Fig6_panelD.png",
   final,
   device = "png",
-  width = 10,
-  height = 10,
-  units = "cm",
+  width = 10, height = 10, units = "cm",
   dpi = 400,
   bg = "white")
