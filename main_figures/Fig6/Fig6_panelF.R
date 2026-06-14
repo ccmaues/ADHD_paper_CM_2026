@@ -1,127 +1,38 @@
 pacman::p_load(dplyr, data.table, ggthemr, ggplot2, envalysis, broom, survival, tidyr)
-# make HZ col plot  for Overall HZ, 90, 10, 90  w/ family, 10 w/ family, 90 n/family 10 n/family
-data <- readRDS("/media/santorolab/C207-3566/cass_BHRC_28042025_ARTICLE.RDS")
-database <-
-  data$proband_data %>% # latest version
-	mutate(
-		W0 = ifelse(W0 == 2, 1, 0),
-		W1 = ifelse(W1 == 2, 1, 0),
-		W2 = ifelse(W2 == 2, 1, 0))
+# make HZ col plot with stratification for high risk strata 90th>=
+source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
 
-# PCA
-all_pcs <-
-  data$PCA_all_samples %>%
-  inner_join(., select(database, IID, PRS), by = "IID") %>%
-  select(-FID)
-
-# Family history
 hist <-
-  data$family_history %>%
+  readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")$family_history %>%
   mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
 
-# PRS correction
-shapiro.test(all_pcs$PRS)
-new_PRS <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = all_pcs))
-database <-
-	cbind(select(database, -PRS), PRS = new_PRS) %>%
-  mutate(
-    risk = ntile(PRS, 100),
-    percentile = case_when(
-      risk >= 90 ~ "90th",
-      risk <= 10 ~ "10th",
-      TRUE ~ "else"),
-    percentile = factor(
-      percentile,
-      levels = c("10th", "else", "90th"))) %>%
-	inner_join(., select(hist, IID, any_hist), by = "IID") %>%
-  select(IID, site, W0, W1, W2, age_W0, age_W1, age_W2, percentile, gender, site, any_hist)
-
-## keep controls the same
-without_entry <-
-  filter(database, W2 == 0) %>%
-  select(IID, age_W2, W2) %>%
-  rename(time = 2, status = 3)
-str(without_entry)
-
-## with the first occurance
-temp1 <-
-  filter(database, !IID %in% without_entry$IID) %>%
-  select(IID, W0, W1, W2) %>%
-  pivot_longer(
-    cols = starts_with("W"),
-    names_to = "wave",
-    values_to = "diagnosis")
-str(temp1)
-
-## Age data
-temp2 <-
-  filter(database, !IID %in% without_entry$IID) %>%
-  select(IID, age_W0, age_W1, age_W2) %>%
-  pivot_longer(
-    cols = starts_with("age_W"),
-    names_to = "wave",
-    values_to = "age") %>%
-  mutate(wave = gsub("age_", "", wave))
-str(temp2)
-
-with_entry <-
-  inner_join(temp1, temp2, by = c("IID", "wave")) %>%
-  filter(diagnosis == 1) %>% # any time diagnosis
-  group_by(IID) %>%
-  filter(age == min(age)) %>%
-  ungroup() %>%
-  select(-wave) %>%
-  rename(status = 2, time = 3)
-str(with_entry)
-
-survival_data <-
-  rbind(with_entry, without_entry) %>%
-  inner_join(., select(database, IID, site, percentile, gender, site, any_hist), by = "IID") %>%
-  select(-IID) %>%
-  data.frame()
+wd <-
+  inner_join(survival_data, hist, by = "IID") %>%
+  select(-IID)
 
 # the only difference, is that I have put the percentile
 # out of the strata function and added the family_history
-females_90_hist <-
+top_risk <-
   tidy(
-    coxph(
-      Surv(time, status) ~ percentile + site,
-      data = filter(survival_data, gender == "Female" & any_hist == 1)),
+    coxph(Surv(time, status) ~ gender + site + any_hist, data = filter(wd, percentile == "90th")),
     exponentiate = TRUE,
     conf.int = TRUE) %>%
-  mutate(group = "Females", group2 = "W/ history")
-
-females_90_no_hist <-
+  mutate(group = "High risk")
+low_risk <-
   tidy(
-   coxph(
-      Surv(time, status) ~ percentile + site,
-      data = filter(survival_data, gender == "Female" & any_hist == 0)),
+    coxph(Surv(time, status) ~ gender + site + any_hist, data = filter(wd, percentile == "10th")),
     exponentiate = TRUE,
     conf.int = TRUE) %>%
-  mutate(group = "Females", group2 = "No history")
-
-males_90_hist <-
-  tidy(
-    coxph(
-      Surv(time, status) ~ percentile + site,
-      data = filter(survival_data, gender == "Male" & any_hist == 1)),
-    exponentiate = TRUE,
-    conf.int = TRUE) %>%
-  mutate(group = "Males", group2 = "W/ history")
-
-males_90_no_hist <-
-  tidy(
-   coxph(
-      Surv(time, status) ~ percentile + site,
-      data = filter(survival_data, gender == "Male" & any_hist == 0)),
-    exponentiate = TRUE,
-    conf.int = TRUE) %>%
-  mutate(group = "Males", group2 = "No history")
+  mutate(group = "Low risk")
 
 for_plot_HR <-
-  rbind(females_90_no_hist, females_90_hist, males_90_hist, males_90_no_hist) %>%
+  rbind(top_risk, low_risk) %>%
   mutate(
-    term = recode(term, "percentile90th" = "90th"),
+    term = recode(
+      term,
+      "siteRS" = "Site",
+      "genderMale" = "Gender",
+      "any_hist" = "Family\nhistory"),
     stars = case_when(
       p.value < 0.001 ~ "***",
       p.value < 0.01 ~ "**",
@@ -130,45 +41,46 @@ for_plot_HR <-
     data = "all",
     estimate = round(estimate, 2),
     CI = paste0(round(conf.low, 2), "—", round(conf.high, 2), stars)) %>%
-  filter(term == "90th") %>%
-  mutate(group = factor(group, levels = c("Males", "Females")))
+  filter(term %in% c("Gender", "Family\nhistory")) %>%
+  mutate(term = factor(term, levels = c("Family\nhistory", "Gender")))
 
 ggthemr("grape")
 
 final <-
-  ggplot(for_plot_HR, aes(term, estimate, fill = group2, color = group2)) +
+  ggplot(for_plot_HR, aes(term, estimate, fill = term, color = term)) +
     geom_errorbar(
       aes(ymin = conf.low, ymax = conf.high),
       width = 0.5,
       position = position_dodge(width = 1)) +
-    geom_col(position = position_dodge(width = 1)) +
+    geom_col(width = 0.7) +
     geom_text(
-      aes(
-        label = estimate,
-        hjust = 0.5,
-        vjust = 1.5),
-      color = "white",
-      size = 3,
-			position = position_dodge(width = 1)) +
-    geom_text(
-      aes(y = conf.high + 1, label = stars),
-      position = position_dodge(width = 1),
-      vjust = 0.6,
-      size = 5,
+      aes(y = conf.high + 0.5, label = stars),
+      position = position_dodge(width = 0.7),
+      vjust = 0.7,
+      size = 7,
       show.legend = FALSE,
       angle = 90) +
-    scale_y_continuous(limits = c(0, 10)) +
+    scale_y_continuous(n.breaks = 5) +
     labs(y = "Harzard Ratio", x = "") +
-    theme_publish(base_family = 7) +
+    theme_publish(base_size = 15) +
     theme(
-      legend.position = "top",
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      strip.text.x = element_blank(),
-      legend.title = element_blank()) +
-    facet_wrap(~group)
+      legend.position = "none",
+      panel.grid.major.y = element_line(
+				color = "grey90",
+				linetype = "dashed",
+				linewidth = 0.4),
+      axis.line.x = element_line(linewidth = 0.3),
+      axis.line.y = element_line(linewidth = 0.3),
+    strip.background = element_rect(fill = "#c4c4c4", linewidth = 0),
+    strip.text = element_text(face = "bold", color = "#424141", size = 10)) +
+    facet_wrap(~ group, nrow = 1, scales = "free_x")
 
 ggsave(
-  "Fig6_panelF.png", final, device = "png",
-  width = 100, height = 60, units = "mm",
-  dpi = 300, bg = "white")
+  "Fig6_panelF.png",
+  final,
+  device = "png",
+  width = 10,
+  height = 7,
+  units = "cm",
+  dpi = 400,
+  bg = "white")

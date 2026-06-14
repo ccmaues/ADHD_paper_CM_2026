@@ -1,5 +1,5 @@
 pacman::p_load(dplyr, data.table, ggthemr, ggplot2, envalysis, broom, survival, tidyr)
-# make HZ col plot with stratification per family history
+# make HZ col plot with stratification by gender
 source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 hist <-
@@ -12,27 +12,27 @@ wd <-
 
 # the only difference, is that I have put the percentile
 # out of the strata function and added the family_history
-w_fam_hist <-
+female <-
   tidy(
-    coxph(Surv(time, status) ~ percentile + gender + site, data = filter(wd, any_hist == 1)),
+    coxph(Surv(time, status) ~ percentile + site + any_hist, data = filter(wd, gender == "Female")),
     exponentiate = TRUE,
     conf.int = TRUE) %>%
-  mutate(group = "With family history")
-no_fam_hist <-
+  mutate(group = "Females")
+male <-
   tidy(
-    coxph(Surv(time, status) ~ percentile + gender + site, data = filter(wd, any_hist == 0)),
+    coxph(Surv(time, status) ~ percentile + site + any_hist, data = filter(wd, gender == "Male")),
     exponentiate = TRUE,
     conf.int = TRUE) %>%
-  mutate(group = "No family history")
+  mutate(group = "Males")
 
 for_plot_HR <-
-  rbind(w_fam_hist, no_fam_hist) %>%
+  rbind(female, male) %>%
   mutate(
     term = recode(
       term,
       "siteRS" = "Site",
-      "genderMale" = "Gender",
-      "percentile90th" = "90th"),
+      "percentile90th" = "90th",
+      "any_hist" = "Family\nhistory"),
     stars = case_when(
       p.value < 0.001 ~ "***",
       p.value < 0.01 ~ "**",
@@ -41,8 +41,8 @@ for_plot_HR <-
     data = "all",
     estimate = round(estimate, 2),
     CI = paste0(round(conf.low, 2), "—", round(conf.high, 2), stars)) %>%
-  filter(term %in% c("Gender", "90th")) %>%
-  mutate(term = factor(term, levels = c("90th", "Gender")))
+  filter(term %in% c("90th", "Family\nhistory")) %>%
+  mutate(term = factor(term, levels = c("Family\nhistory", "90th")))
 
 ggthemr("grape")
 
@@ -54,7 +54,7 @@ final <-
       position = position_dodge(width = 1)) +
     geom_col(width = 0.7) +
     geom_text(
-      aes(y = conf.high + 0.5, label = stars),
+      aes(y = conf.high + 0.7, label = stars),
       position = position_dodge(width = 0.7),
       vjust = 0.7,
       size = 7,
@@ -76,7 +76,7 @@ final <-
     facet_wrap(~ group, nrow = 1, scales = "free_x")
 
 ggsave(
-  "Fig6_panelD.png",
+  "Fig6_panelG.png",
   final,
   device = "png",
   width = 10,
