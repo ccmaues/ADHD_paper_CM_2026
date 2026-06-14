@@ -12,7 +12,7 @@ wd <-
 cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + gender + site, data = wd)
 fit1 <- survfit(cox)
 
-cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + site, data = filter(wd, gender == "Female"))
+cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist, data = filter(wd, gender == "Female"))
 fit2 <- survfit(cox)
 
 cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + site, data = filter(wd, gender == "Male"))
