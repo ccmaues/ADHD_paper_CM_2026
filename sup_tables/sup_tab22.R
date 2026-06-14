@@ -40,5 +40,5 @@ final <- tbl_merge(
   as_flex_table()
 
 save_as_docx(
-  "Supplementary Table S22 - Main Cox proportional hazards model by gender (90th only)" = final,
+  "Supplementary Table S22 - Hazard ratio by gender (90th only)" = final,
   path = "sup_tab22.docx")

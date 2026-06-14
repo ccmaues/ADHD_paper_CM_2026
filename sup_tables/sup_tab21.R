@@ -60,5 +60,5 @@ final <- tbl_merge(
   as_flex_table()
 
 save_as_docx(
-  "Supplementary Table S21 - Main Cox proportional hazards model by gender (family history only)" = final,
+  "Supplementary Table S21 - Hazard ratio by gender (family history only)" = final,
   path = "sup_tab21.docx")
