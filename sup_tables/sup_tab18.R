@@ -44,24 +44,31 @@ wd <-
 # all samples
 # ---------------
 m_w0 <- glm(
-  W0 ~ PRS * gender + age_W0 + site + any_hist,
-  data = database,
+  diagnosis_W0 ~ PRS * gender + age_W0 + site + any_hist,
+  data = wd,
   family = "binomial")
 
 m_w1 <- glm(
-  W1 ~ PRS * gender + age_W1 + site + any_hist,
-  data = database,
+  diagnosis_W1 ~ PRS * gender + age_W1 + site + any_hist,
+  data = wd,
   family = "binomial")
 
 m_w2 <- glm(
-  W2 ~ PRS * gender + age_W2 + site + any_hist,
-  data = database,
+  diagnosis_W2 ~ PRS * gender + age_W2 + site + any_hist,
+  data = wd,
   family = "binomial")
 
 mods <- list(
   W0 = m_w0,
   W1 = m_w1,
   W2 = m_w2)
+
+# Controlar efeito aleatorio
+# glmmTMB(
+#   percentage_prop ~ wave * coluna_traj + sex + site + bage + (1 | subjectid)
+#    data = nanosight_intersect,
+#    family = beta_family(link = logit))
+# dispformula = age
 
 interactions <-
   imap_dfr(mods, ~
@@ -82,6 +89,7 @@ final <- interactions %>%
   flextable::align(part = "all", align = "center") %>%
 	flextable::autofit()
 
-flextable::save_as_docx(
-  "Supplementary Table S18" = final,
-  path = "sup_tab18.docx")
+# Fix table
+# flextable::save_as_docx(
+#   "Supplementary Table S18" = final,
+#   path = "sup_tab18.docx")
