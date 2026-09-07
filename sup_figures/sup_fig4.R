@@ -1,13 +1,13 @@
 pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, broom)
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 database <-
   data$proband_data %>% # latest version
 	filter(gender == "Female") %>%
 	inner_join(., data$PCA_by_sex, by = "IID")
 
 # change for the females subset
-val_10 <- fread("D:/cass_HD/DD_CM_backup/PCA_files_cass/cass_final_PCA/all_females_PCA.eigenval")
+val_10 <- fread("C:/Users/cassi/Documents/work/0_external_files/w3_pca/cass_697_W3_PCA.eigenval")
 
 var_exp10 <- val_10 / sum(val_10)
 
@@ -81,6 +81,5 @@ p5 <-
 # Combine plots
 library(patchwork)
 final <- (p1 + p2) / (p3 + p4) + p5 + plot_annotation(tag_levels = 'A')
-final
 
-ggsave("sup_fig4.png", final, device = "png", height = 300, width = 200, units = "mm")
+ggsave("fig4_sup.png", final, device = "png", height = 300, width = 200, units = "mm")

@@ -3,12 +3,11 @@ pacman::p_load(data.table, ggplot2, ggthemr, envalysis, tidyverse, broom, patchw
 options(scipen = 999) # disable scientific notation
 
 # MAKE VERY SIMILAR TO THE https://www.nature.com/articles/s41380-023-02293-8
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
-database <- data$proband_data %>% # latest version
-	mutate(
-		W0 = ifelse(W0 == 2, 1, 0),
-		W1 = ifelse(W1 == 2, 1, 0),
-		W2 = ifelse(W2 == 2, 1, 0))
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
+database <-
+	data$proband_data %>%
+	mutate(across(c(W0, W1, W2, W3), ~ ifelse(.x == 2, 1, .x))) %>%
+	select(IID, gender, W0, W1, W2, W3, starts_with("age_"), PRS)
 females <- filter(database, gender == "Female")
 males <- filter(database, gender == "Male")
 
@@ -40,14 +39,14 @@ males <- cbind(select(males, -PRS), PRS = new_PRS_man)
 
 # plot object
 database_long <-
-  select(database, W0, W1, W2, PRS) %>%
+  select(database, W0, W1, W2, W3, PRS) %>%
   mutate(risk = ntile(PRS, 100)) %>%
 	pivot_longer(
 		cols = starts_with("W"),
 		names_to = "wave",
 		values_to = "diagnosis") %>%
   mutate(
-		wave = factor(wave, levels = c("W0", "W1", "W2")),
+		wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
 		diagnosis = factor(diagnosis, levels = c(0, 1)),
     type1 = case_when(
       risk >= 90 ~ "high",
@@ -55,12 +54,12 @@ database_long <-
       TRUE ~ "else"),
     type2 = ifelse(risk <= 10, "low", "else"),
     type3 = ifelse(risk >= 90, "high", "else"),
-    type1 = factor(type1, levels = c("low", "else", "high")), # that way the intercept is the low
+    type1 = factor(type1, levels = c("low", "else", "high")),
     type2 = factor(type2, levels = c("else", "low")),
     type3 = factor(type3, levels = c("else", "high")))
 
 females_long <-
-  select(database, gender, W0, W1, W2, PRS) %>%
+  select(database, gender, W0, W1, W2, W3, PRS) %>%
   filter(gender == "Female") %>%
   mutate(risk = ntile(PRS, 100)) %>%
 	pivot_longer(
@@ -68,7 +67,7 @@ females_long <-
 		names_to = "wave",
 		values_to = "diagnosis") %>%
   mutate(
-		wave = factor(wave, levels = c("W0", "W1", "W2")),
+		wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
 		diagnosis = factor(diagnosis, levels = c(0, 1)),
     type1 = case_when(
       risk >= 90 ~ "high",
@@ -81,7 +80,7 @@ females_long <-
     type3 = factor(type3, levels = c("else", "high")))
 
 males_long <-
-  select(database, gender, W0, W1, W2, PRS) %>%
+  select(database, gender, W0, W1, W2, W3, PRS) %>%
   filter(gender == "Male") %>%
   mutate(risk = ntile(PRS, 100)) %>%
 	pivot_longer(
@@ -89,7 +88,7 @@ males_long <-
 		names_to = "wave",
 		values_to = "diagnosis") %>%
   mutate(
-		wave = factor(wave, levels = c("W0", "W1", "W2")),
+		wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
 		diagnosis = factor(diagnosis, levels = c(0, 1)),
     type1 = case_when(
       risk >= 90 ~ "high",
@@ -97,7 +96,7 @@ males_long <-
       TRUE ~ "else"),
     type2 = ifelse(risk <= 10, "low", "else"),
     type3 = ifelse(risk >= 90, "high", "else"),
-    type1 = factor(type1, levels = c("low", "else", "high")), # that way the intercept is the low
+    type1 = factor(type1, levels = c("low", "else", "high")),
     type2 = factor(type2, levels = c("else", "low")),
     type3 = factor(type3, levels = c("else", "high")))
 
@@ -291,6 +290,12 @@ final <-
       size = 5,
       show.legend = FALSE) +
     labs(color = "", x = "", y = "Odds ratio") +
+    scale_color_manual(
+        values = c(
+          W0 = "#65ADC2",
+          W1 = "#233B43",
+          W2 = "#E84646",
+          W3 = "#9B59B6")) +
     guides(shape = "none") +
     theme_publish(base_size = 10) +
     theme(legend.position = "top") +

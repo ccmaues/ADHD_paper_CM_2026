@@ -17,8 +17,13 @@ cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + gender + site,
 fit1 <- survfit(cox)
 
 # Get event prob at 12 yr
-tp1 <- sprintf("%.2f", summary(fit1, times = 12)$cumhaz[3] * 100) # 10th
-bt1 <- sprintf("%.2f", summary(fit1, times = 12)$cumhaz[1] * 100) # 90th
+s1 <- summary(fit1, times = 12)
+
+bt1 <- sprintf("%.2f", (1 - s1$surv[1]) * 100) # 10th
+tp1 <- sprintf("%.2f", (1 - s1$surv[3]) * 100) # 90th
+
+bt1_y <- 1 - s1$surv[1]
+tp1_y <- 1 - s1$surv[3]
 
 #---------------------------------
 # females
@@ -26,8 +31,13 @@ bt1 <- sprintf("%.2f", summary(fit1, times = 12)$cumhaz[1] * 100) # 90th
 cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist, data =  filter(wd, gender == "Female"))
 fit2 <- survfit(cox)
 
-tp2 <- sprintf("%.2f", summary(fit2, times = 12)$cumhaz[3] * 100) # 10th
-bt2 <- sprintf("%.2f", summary(fit2, times = 12)$cumhaz[1] * 100) # 90th
+s2 <- summary(fit2, times = 12)
+
+bt2 <- sprintf("%.2f", (1 - s2$surv[1]) * 100) # 10th
+tp2 <- sprintf("%.2f", (1 - s2$surv[3]) * 100) # 90th
+
+bt2_y <- 1 - s2$surv[1]
+tp2_y <- 1 - s2$surv[3]
 
 #---------------------------------
 # males
@@ -35,13 +45,18 @@ bt2 <- sprintf("%.2f", summary(fit2, times = 12)$cumhaz[1] * 100) # 90th
 cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + site, data = filter(wd, gender == "Male"))
 fit3 <- survfit(cox)
 
-tp3 <- sprintf("%.2f", summary(fit3, times = 12)$cumhaz[3] * 100) # 10th
-bt3 <- sprintf("%.2f", summary(fit3, times = 12)$cumhaz[1] * 100) # 90th
+s3 <- summary(fit3, times = 12)
+
+bt3 <- sprintf("%.2f", (1 - s3$surv[1]) * 100) # 10th
+tp3 <- sprintf("%.2f", (1 - s3$surv[3]) * 100) # 90th
+
+bt3_y <- 1 - s3$surv[1]
+tp3_y <- 1 - s3$surv[3]
 
 # Panel A
 surv <-
   ggsurvplot(
-    fit1,                                      # objeto com a função
+    fit1,                                     # objeto com a função
     data = wd,                                # objeto criador da função
     fun = "event",                            # função de transformação da curva de sobrevivência
     xlab = "Age (yr)",                        # titulo do eixo x
@@ -55,13 +70,15 @@ p1 <-
   surv$plot +
   scale_color_manual(values = c("90th" = "#670D2F", "else" = "#c4c4c470", "10th" = "#129990")) +
   scale_y_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2), limits = c(0, 0.20), labels = function(y) sprintf("%.2f", y)) +
-  scale_x_continuous(limits = c(0, 25), breaks = c(0, 5, 10, 12, 15, 20, 25)) +
-  geom_segment(aes(x = 12, xend = 12, y = 0, yend = 0.092), color = "black", linetype = "solid", size = 0.2) +
-  geom_point(aes(x = 12, y = 0.09), color = "#670D2F", size = 1.5) +
-  geom_point(aes(x = 12, y = 0.056), color = "#129990", size = 1.5) +
-  geom_text(aes(x = 9, y = 0.10, label = tp1), color = "#670D2F", size = 3, hjust = -0.1) +
-  geom_text(aes(x = 12.5, y = 0.05, label = bt1), color = "#129990", size = 3, hjust = -0.1) +
-  labs(y = "", x = "") +
+  scale_x_continuous(limits = c(0, 30), breaks = c(0, 5, 10, 12, 15, 20, 30)) +
+  geom_segment(
+    aes(x = 12, xend = 12, y = 0, yend = max(bt1_y, tp1_y)),
+    color = "black", size = 0.2) +
+  geom_point(aes(x = 12, y = tp1_y), color = "#670D2F", size = 1.5) +
+  geom_point(aes(x = 12, y = bt1_y), color = "#129990", size = 1.5) +
+  geom_text(aes(x = 12.5, y = tp1_y, label = tp1), color = "#670D2F", size = 3, hjust = -0.1) +
+  geom_text(aes(x = 12.5, y = bt1_y, label = bt1), color = "#129990", size = 3, hjust = -0.1) +
+  labs(y = "", x = "", title = "all") +
   theme_publish(base_size = 10) +
   theme(
     legend.position = "top",
@@ -84,13 +101,15 @@ p2 <-
   surv$plot +
   scale_color_manual(values = c("90th" = "#670D2F", "else" = "#c4c4c470", "10th" = "#129990")) +
   scale_y_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2), limits = c(0, 0.20), labels = function(y) sprintf("%.2f", y)) +
-  scale_x_continuous(limits = c(0, 25), breaks = c(0, 5, 10, 12, 15, 20, 25)) +
-  geom_segment(aes(x = 12, xend = 12, y = 0, yend = 0.109), color = "black", linetype = "solid", size = 0.2) +
-  geom_point(aes(x = 12, y = 0.10), color = "#670D2F", size = 1.5) +
-  geom_point(aes(x = 12, y = 0.109), color = "#129990", size = 1.5) +
-  geom_text(aes(x = 12.5, y = 0.05, label = tp2), color = "#670D2F", size = 3, hjust = -0.1) +
-  geom_text(aes(x = 9, y = 0.10, label = bt2), color = "#129990", size = 3, hjust = -0.1) +
-  labs(y = "Cumulative event probability", x = "") +
+  scale_x_continuous(limits = c(0, 30), breaks = c(0, 5, 10, 12, 15, 20, 30)) +
+  geom_segment(
+    aes(x = 12, xend = 12, y = 0, yend = max(bt2_y, tp2_y)),
+    color = "black", size = 0.2) +
+  geom_point(aes(x = 12, y = tp2_y), color = "#670D2F", size = 1.5) +
+  geom_point(aes(x = 12, y = bt2_y), color = "#129990", size = 1.5) +
+  geom_text(aes(x = 12.5, y = tp2_y, label = tp2), color = "#670D2F", size = 3, hjust = -0.1) +
+  geom_text(aes(x = 12.5, y = bt2_y, label = bt2), color = "#129990", size = 3, hjust = -0.1) +
+  labs(y = "Cumulative event probability", x = "", title = "females") +
   theme_publish(base_size = 10) +
   theme(
     legend.position = "none",
@@ -113,13 +132,15 @@ p3 <-
   surv$plot +
   scale_color_manual(values = c("90th" = "#670D2F", "else" = "#c4c4c470", "10th" = "#129990")) +
   scale_y_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3), limits = c(0, 0.3)) +
-  scale_x_continuous(limits = c(0, 25), breaks = c(0, 5, 10, 12, 15, 20, 25)) +
-  geom_segment(aes(x = 12, xend = 12, y = 0, yend = 0.152), color = "black", linetype = "solid", size = 0.2) +
-  geom_point(aes(x = 12, y = 0.15), color = "#670D2F", size = 1.5) +
-  geom_point(aes(x = 12, y = 0.062), color = "#129990", size = 1.5) +
-  geom_text(aes(x = 9.3, y = 0.18, label = tp3), color = "#670D2F", size = 3, hjust = -0.1) +
-  geom_text(aes(x = 12.5, y = 0.05, label = bt3), color = "#129990", size = 3, hjust = -0.1) +
-  labs(y = "", x = "Age (yr)") +
+  scale_x_continuous(limits = c(0, 30), breaks = c(0, 5, 10, 12, 15, 20, 30)) +
+  geom_segment(
+    aes(x = 12, xend = 12, y = 0, yend = max(bt3_y, tp3_y)),
+    color = "black", size = 0.2) +
+  geom_point(aes(x = 12, y = tp3_y), color = "#670D2F", size = 1.5) +
+  geom_point(aes(x = 12, y = bt3_y), color = "#129990", size = 1.5) +
+  geom_text(aes(x = 12.5, y = tp3_y, label = tp3), color = "#670D2F", size = 3, hjust = -0.1) +
+  geom_text(aes(x = 12.5, y = bt3_y, label = bt3), color = "#129990", size = 3, hjust = -0.1) +
+  labs(y = "", x = "Age (yr)", title = "Males") +
   theme_publish(base_size = 10) +
   theme(
     legend.position = "none",

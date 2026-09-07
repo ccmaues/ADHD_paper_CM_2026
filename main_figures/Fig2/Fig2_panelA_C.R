@@ -1,11 +1,11 @@
 # Model performance over time (all)
 pacman::p_load(dplyr, tidyr, nsROC, PRROC, DescTools, purrr, patchwork, ggplot2, envalysis, ggthemr)
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 
 # Family history
-hist <- data$family_history %>%
-  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0)) %>%
+hist <-
+	data$family_history %>%
 	select(IID, any_hist)
 
 # Proband data
@@ -50,7 +50,7 @@ get_metrics <- function(wave, df, sex_adjust = TRUE) {
   tibble(wave = wave, predictor = c("R2", "AUROC", "AUCPR"), value = c(r2, auroc, aucpr))}
 # -----------------------
 
-waves <- c("W0", "W1", "W2")
+waves <- c("W0", "W1", "W2", "W3")
 tabs <- map(datasets, correct_prs)
 
 for_plot <- imap_dfr(
@@ -59,7 +59,7 @@ for_plot <- imap_dfr(
   mutate(subset = .y)) %>%
   mutate(
 		predictor = recode(predictor, "R2" = "R²"),
-    wave = factor(wave, levels = c("W0", "W1", "W2")),
+    wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
     predictor = factor(predictor, levels = c("R²", "AUROC", "AUCPR")))
 
 # Plot dataset
@@ -70,12 +70,12 @@ p1 <-
 	ggplot(aes(x = wave, y = value * 100, group = 1, color = wave)) +
 		geom_line(size = 1.2, color = "#c7c7c7") +
 		geom_point(size = 3) +
-		# geom_text(
-		# 	aes(label = sprintf("%.2f", value)),
-		# 	vjust = -0.8,
-		# 	hjust = -0.2,
-		# 	size = 3.5,
-		# 	fontface = "bold") +
+	scale_color_manual(
+		values = c(
+			W0 = "#65ADC2",
+			W1 = "#233B43",
+			W2 = "#E84646",
+			W3 = "#9B59B6")) +
 		facet_wrap(~predictor, scales = "free_y", ncol = 1) +
 		scale_x_discrete(
 			expand = expansion(mult = c(0.05, 0.20))) +
@@ -102,12 +102,12 @@ p2 <-
 	ggplot(aes(x = wave, y = value * 100, group = 1, color = wave)) +
 		geom_line(size = 1.2, color = "#c7c7c7") +
 		geom_point(size = 3) +
-		# geom_text(
-		# 	aes(label = sprintf("%.2f", value)),
-		# 	vjust = -0.8,
-		# 	hjust = -0.2,
-		# 	size = 3.5,
-		# 	fontface = "bold") +
+		scale_color_manual(
+			values = c(
+				W0 = "#65ADC2",
+				W1 = "#233B43",
+				W2 = "#E84646",
+				W3 = "#9B59B6")) +
 		facet_wrap(~predictor, scales = "free_y", ncol = 1) +
 		scale_x_discrete(
 			expand = expansion(mult = c(0.05, 0.20))) +
@@ -133,12 +133,12 @@ p3 <-
 	ggplot(aes(x = wave, y = value * 100, group = 1, color = wave)) +
 		geom_line(size = 1.2, color = "#c7c7c7") +
 		geom_point(size = 3) +
-		# geom_text(
-		# 	aes(label = sprintf("%.2f", value)),
-		# 	vjust = -0.8,
-		# 	hjust = -0.2,
-		# 	size = 3.5,
-		# 	fontface = "bold") +
+		scale_color_manual(
+			values = c(
+				W0 = "#65ADC2",
+				W1 = "#233B43",
+				W2 = "#E84646",
+				W3 = "#9B59B6")) +
 		facet_wrap(~predictor, scales = "free_y", ncol = 1) +
 		scale_x_discrete(
 			expand = expansion(mult = c(0.05, 0.20))) +

@@ -1,8 +1,8 @@
 pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, patchwork)
 
-val_10 <- fread("/media/santorolab/C207-3566/PCA_files_cass/cass_final_PCA/all_samples_PCA.eigenval")
+val_10 <- fread("C:/Users/cassi/Documents/work/0_external_files/w3_pca/cass_1506_W3_PCA.eigenval")
 
-data <- readRDS("/media/santorolab/C207-3566/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 pca_all <- data$PCA_all_samples # latest version
 
 for_plot <- inner_join(pca_all, select(data$proband_data, IID, gender, site), by = "IID")

@@ -1,6 +1,6 @@
 pacman::p_load(dplyr, data.table, ggplot2, ggdist, tidyquant, ggthemr, envalysis, tidyr, patchwork)
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 
 # Samples
 database <- data$proband_data # latest version
@@ -73,7 +73,11 @@ p1 <-
 		outlier.size = 2,
 		width = 0.1,
 		alpha = 0.5) +
-	scale_x_discrete(labels = c("All (N=1553)", "Females (N=692)", "Males (N=861)")) +
+	scale_x_discrete(
+	labels = c(
+		sprintf("All (N=%d)", length(new_PRS)),
+		sprintf("Females (N=%d)", length(new_PRS_fem)),
+		sprintf("Males (N=%d)", length(new_PRS_man)))) +
 	labs(x = "") +
 	theme_publish() +
 	theme(
@@ -120,5 +124,5 @@ p2 <-
 
 # Final plot export
 final <- p1 / p2 +  plot_annotation(tag_levels = 'A')
-ggsave("sup_fig1.png", device = "png", height = 300, width = 200, units = "mm")
+ggsave("fig1_sup.png", device = "png", height = 300, width = 200, units = "mm")
 

@@ -1,15 +1,12 @@
 # Odds ratio per PRS strata on W0, W1 and W2 (all samples)
 pacman::p_load(dplyr, broom, ggplot2, envalysis, ggthemr, patchwork)
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 
 database <-
-  data$proband_data %>% # latest version
-	mutate(
-		W0 = ifelse(W0 == 2, 1, 0),
-		W1 = ifelse(W1 == 2, 1, 0),
-		W2 = ifelse(W2 == 2, 1, 0)) %>%
-	select(IID, gender, W0, W1, W2, starts_with("age_"))
+	data$proband_data %>%
+	mutate(across(c(W0, W1, W2, W3), ~ ifelse(.x == 2, 1, .x))) %>%
+	select(IID, gender, W0, W1, W2, W3, starts_with("age_"))
 
 # PCA
 all_pcs <-
@@ -40,39 +37,42 @@ wd <-
 
 # Models
 models <-
-	list(w0 = glm(W0 ~ factor(decile) + gender + any_hist + age_W0, family = binomial, data = wd),
-		 w1 = glm(W1 ~ factor(decile) + gender + any_hist + age_W1, family = binomial, data = wd),
-		 w2 = glm(W2 ~ factor(decile) + gender + any_hist + age_W2, family = binomial, data = wd)) %>%
-  lapply(function(mod) {
-    tidy(mod,
-         exponentiate = TRUE,
-         conf.int = TRUE) %>%
-      filter(grepl("decile", term)) %>%
-      mutate(decile = 2:10) %>%
-      bind_rows(
-        tibble(
-          decile = 1,
-          estimate = 1,
-          conf.low = 1,
-          conf.high = 1)) %>%
-      arrange(decile)})
+	list(
+		w0 = glm(W0 ~ factor(decile) + gender + any_hist + age_W0, family = binomial, data = wd),
+		w1 = glm(W1 ~ factor(decile) + gender + any_hist + age_W1, family = binomial, data = wd),
+		w2 = glm(W2 ~ factor(decile) + gender + any_hist + age_W2, family = binomial, data = wd),
+		w3 = glm(W3 ~ factor(decile) + gender + any_hist + age_W3, family = binomial, data = wd)) %>%
+	lapply(function(mod) {
+		tidy(mod,
+			exponentiate = TRUE,
+			conf.int = TRUE) %>%
+			filter(grepl("decile", term)) %>%
+			mutate(decile = 2:10) %>%
+			bind_rows(
+				tibble(
+					decile = 1,
+					estimate = 1,
+					conf.low = 1,
+					conf.high = 1)) %>%
+			arrange(decile)})
 
 ggthemr("fresh")
 # -----------------------
 # All dataset
 # -----------------------
-
 ylims <- c(
-  min(
-    models$w0$conf.low,
-    models$w1$conf.low,
-    models$w2$conf.low,
-    na.rm = TRUE),
-  max(
-    models$w0$conf.high,
-    models$w1$conf.high,
-    models$w2$conf.high,
-    na.rm = TRUE))
+	min(
+		models$w0$conf.low,
+		models$w1$conf.low,
+		models$w2$conf.low,
+		models$w3$conf.low,
+		na.rm = TRUE),
+	max(
+		models$w0$conf.high,
+		models$w1$conf.high,
+		models$w2$conf.high,
+		models$w3$conf.high,
+		na.rm = TRUE))
 
 p1 <-
 	ggplot(models$w0, aes(x = decile, y = estimate)) +
@@ -122,10 +122,27 @@ p3 <-
 				"1st", "2nd", "3rd", "4th", "5th",
 				"6th", "7th", "8th", "9th", "10th")) +
 		theme_publish(base_size = 10) +
+		labs(x = "", y = "") +
+		theme_publish()
+
+p4 <-
+	ggplot(models$w3, aes(x = decile, y = estimate)) +
+		geom_hline(yintercept = 1, linetype = "dashed", color = "grey", linewidth = 0.3) +
+		geom_line(color = "#4e4e4e") +
+		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#9b59b694", width = 0, linewidth = 0.3) +
+		geom_point(size = 2, color = "#9B59B6") +
+		coord_cartesian(ylim = ylims) +
+		scale_y_continuous(n.breaks = 7) +
+		scale_x_continuous(
+			breaks = 1:10,
+			labels = c(
+				"1st", "2nd", "3rd", "4th", "5th",
+				"6th", "7th", "8th", "9th", "10th")) +
+		theme_publish(base_size = 10) +
 		labs(x = "PRS risk strata", y = "") +
 		theme_publish()
 
-final <- p1 / p2 / p3 + plot_annotation(tag_levels = "A")
+final <- p1 / p2 / p3 / p4 + plot_annotation(tag_levels = "A")
 
 ggsave(
 	"fig3_panelC.png",

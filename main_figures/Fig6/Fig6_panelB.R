@@ -2,13 +2,9 @@ pacman::p_load(dplyr, data.table, ggthemr, ggplot2, envalysis, broom, survival, 
 # make HZ col plot  for Overall HZ, 90, 10, 90  w/ family, 10 w/ family, 90 n/family 10 n/family
 source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
 
-hist <-
-  readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")$family_history %>%
-  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
-
 wd <-
-  inner_join(survival_data, hist, by = "IID") %>%
-  select(-IID)
+	inner_join(survival_data, hist, by = "IID") %>%
+	select(-IID)
 
 # the only difference, is that I have put the percentile
 # out of the strata function and added the family_history
@@ -55,7 +51,7 @@ final <-
       show.legend = FALSE,
       angle = 90) +
     scale_y_continuous(n.breaks = 8) +
-    labs(y = "Harzard Ratio", x = "") +
+    labs(y = "Hazard Ratio", x = "") +
     theme_publish(base_size = 15) +
     theme(
       legend.position = "none",

@@ -1,6 +1,6 @@
 pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, broom)
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 database <- data$proband_data # latest version
 
 # PCA
@@ -52,6 +52,5 @@ p4 <-
 # Combine plots
 library(patchwork)
 final <- (p1 + p2) / (p3 + p4) + plot_annotation(tag_levels = 'A')
-final
 
 ggsave("fig3_sup.png", final, device = "png", height = 300, width = 200, units = "mm")

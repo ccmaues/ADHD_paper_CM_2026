@@ -1,90 +1,221 @@
-pacman::p_load(plyr, dplyr, flextable)
+# Cumulative ADHD probability by age
+# Supplementary Table S24
 
-# Survival probabilities
-source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
+pacman::p_load(
+	dplyr,
+	tidyr,
+	survival,
+	flextable)
 
-hist <-
-  readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")$family_history %>%
-  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
+source(
+	"C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
+
+# --------------------------------------------------
+# Working data
+# --------------------------------------------------
 
 wd <-
-  inner_join(survival_data, hist, by = "IID") %>%
-  select(-IID)
+	survival_data %>%
+	inner_join(
+		select(
+			hist,
+			IID,
+			any_hist),
+		by = "IID") %>%
+	select(-IID)
 
-cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + gender + site, data = wd)
-fit1 <- survfit(cox)
+# --------------------------------------------------
+# Cox models
+# --------------------------------------------------
 
-cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist, data = filter(wd, gender == "Female"))
-fit2 <- survfit(cox)
+cox_all <-
+	coxph(
+		Surv(time, status) ~
+			strata(percentile) +
+			any_hist +
+			gender +
+			site,
+		data = wd)
 
-cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + site, data = filter(wd, gender == "Male"))
-fit3 <- survfit(cox)
+cox_fem <-
+	coxph(
+		Surv(time, status) ~
+			strata(percentile) +
+			any_hist,
+		data = filter(
+			wd,
+			gender == "Female"))
 
-sm <- summary(fit1, times = c(5, 10, 12, 15, 20, 25))
-tab <-
-  data.frame(
-    strata = sm$strata,
-    time = sm$time,
-    cumhaz = sm$cumhaz) %>%
-  mutate(estimate = sprintf("%.2f%%", cumhaz * 100)) %>%
-  select(strata, time, estimate) %>%
-  pivot_wider(
-    names_from = strata,
-    values_from = estimate)
+cox_man <-
+	coxph(
+		Surv(time, status) ~
+			strata(percentile) +
+			any_hist +
+			site,
+		data = filter(
+			wd,
+			gender == "Male"))
 
-final <-
-  flextable(tab) %>%
-  add_header_row(
-    values = c("Age (yr)", "Bottom 10%", "Else", "Top 10%")) %>%
-	align(align = "center", part = "all") %>%
+# --------------------------------------------------
+# Survival curves
+# --------------------------------------------------
+
+fit_all <- survfit(cox_all)
+fit_fem <- survfit(cox_fem)
+fit_man <- survfit(cox_man)
+
+# Ages reported in original table
+ages <- c(
+	5,
+	10,
+	12,
+	15,
+	20,
+	25)
+
+# --------------------------------------------------
+# Extract cumulative event probability
+# --------------------------------------------------
+
+get_probability_table <- function(fit) {
+
+	sm <-
+		summary(
+			fit,
+			times = ages,
+			extend = TRUE)
+
+	tab <-
+		tibble(
+			strata = as.character(
+				sm$strata),
+
+			time = sm$time,
+
+			probability =
+				(1 - sm$surv) * 100) %>%
+
+		mutate(
+			# Handles labels such as
+			# "percentile=10th" or
+			# "strata(percentile)=10th"
+			strata =
+				sub(
+					"^.*=",
+					"",
+					strata),
+
+			strata = recode(
+				strata,
+				"10th" = "Bottom 10%",
+				"else" = "Else",
+				"90th" = "Top 10%"),
+
+			estimate = sprintf(
+				"%.2f%%",
+				probability)) %>%
+
+		select(
+			strata,
+			time,
+			estimate) %>%
+
+		pivot_wider(
+			names_from = strata,
+			values_from = estimate) %>%
+
+		select(
+			time,
+			`Bottom 10%`,
+			Else,
+			`Top 10%`)
+
+	return(tab)
+}
+
+# --------------------------------------------------
+# All samples
+# --------------------------------------------------
+
+tab_all <-
+	get_probability_table(
+		fit_all)
+
+final_all <-
+	flextable(
+		tab_all) %>%
+	set_header_labels(
+		time = "Age (yr)",
+		`Bottom 10%` = "Bottom 10%",
+		Else = "Else",
+		`Top 10%` = "Top 10%") %>%
+	bold(
+		part = "header") %>%
+	align(
+		align = "center",
+		part = "all") %>%
+	theme_booktabs() %>%
 	autofit()
 
 save_as_docx(
-  "Supplementary Table S24 - Cumulative survival probabilities per age (all)" = final,
-  path = "sup_tab24_pt1.docx")
+	"Supplementary Table S24 - Cumulative ADHD probability by age (All samples)" =
+		final_all,
+	path = "sup_tab24_pt1.docx")
 
-sm <- summary(fit2, times = c(5, 10, 12, 15, 20, 25))
-tab <-
-  data.frame(
-    strata = sm$strata,
-    time = sm$time,
-    cumhaz = sm$cumhaz) %>%
-  mutate(estimate = sprintf("%.2f%%", cumhaz * 100)) %>%
-  select(strata, time, estimate) %>%
-  pivot_wider(
-    names_from = strata,
-    values_from = estimate)
+# --------------------------------------------------
+# Females
+# --------------------------------------------------
 
-final <-
-  flextable(tab) %>%
-  add_header_row(
-    values = c("Age (yr)", "Bottom 10%", "Else", "Top 10%")) %>%
-	align(align = "center", part = "all") %>%
+tab_fem <-
+	get_probability_table(
+		fit_fem)
+
+final_fem <-
+	flextable(
+		tab_fem) %>%
+	set_header_labels(
+		time = "Age (yr)",
+		`Bottom 10%` = "Bottom 10%",
+		Else = "Else",
+		`Top 10%` = "Top 10%") %>%
+	bold(
+		part = "header") %>%
+	align(
+		align = "center",
+		part = "all") %>%
+	theme_booktabs() %>%
 	autofit()
 
 save_as_docx(
-  "Supplementary Table S24 - Cumulative survival probabilities per age (fem)" = final,
-  path = "sup_tab24_pt2.docx")
+	"Supplementary Table S24 - Cumulative ADHD probability by age (Females)" =
+		final_fem,
+	path = "sup_tab24_pt2.docx")
 
-sm <- summary(fit3, times = c(5, 10, 12, 15, 20, 25))
-tab <-
-  data.frame(
-    strata = sm$strata,
-    time = sm$time,
-    cumhaz = sm$cumhaz) %>%
-  mutate(estimate = sprintf("%.2f%%", cumhaz * 100)) %>%
-  select(strata, time, estimate) %>%
-  pivot_wider(
-    names_from = strata,
-    values_from = estimate)
+# --------------------------------------------------
+# Males
+# --------------------------------------------------
 
-final <-
-  flextable(tab) %>%
-  add_header_row(
-    values = c("Age (yr)", "Bottom 10%", "Else", "Top 10%")) %>%
-	align(align = "center", part = "all") %>%
+tab_man <-
+	get_probability_table(
+		fit_man)
+
+final_man <-
+	flextable(
+		tab_man) %>%
+	set_header_labels(
+		time = "Age (yr)",
+		`Bottom 10%` = "Bottom 10%",
+		Else = "Else",
+		`Top 10%` = "Top 10%") %>%
+	bold(
+		part = "header") %>%
+	align(
+		align = "center",
+		part = "all") %>%
+	theme_booktabs() %>%
 	autofit()
 
 save_as_docx(
-  "Supplementary Table S24 - Cumulative survival probabilities per age (man)" = final,
-  path = "sup_tab24_pt3.docx")
+	"Supplementary Table S24 - Cumulative ADHD probability by age (Males)" =
+		final_man,
+	path = "sup_tab24_pt3.docx")

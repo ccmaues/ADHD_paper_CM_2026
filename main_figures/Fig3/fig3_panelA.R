@@ -1,7 +1,7 @@
 # PCA with genetic data (showing risk and gender)
 pacman::p_load(dplyr, data.table, tidyr, envalysis, ggplot2, ggthemr)
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 
 # Article dataset
 database <-

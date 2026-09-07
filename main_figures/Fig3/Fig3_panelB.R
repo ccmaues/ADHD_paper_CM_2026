@@ -1,13 +1,16 @@
 # Violin plot PRS per diagnosis (W0, W1, W2) all samples
 pacman::p_load(dplyr, tidyr, ggthemr, envalysis, ggplot2, patchwork)
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 
 # Samples & PCs
 database <-
 	data$proband_data %>% 
 	inner_join(., data$PCA_all_samples, by = "IID") %>%
-	mutate(across(starts_with("W"), ~ ifelse(.x == 2, "Case", "Control")))
+	mutate(across(c(W0, W1, W2, W3), ~ case_when(
+		.x %in% c(1, 2) ~ "Case",
+		.x == 0 ~ "Control",
+		TRUE ~ NA_character_)))
 
 females <-
 	filter(database, gender == "Female") %>%
@@ -47,17 +50,19 @@ for_plot <-
 		W0 = database$W0,
 		W1 = database$W1,
 		W2 = database$W2,
+		W3 = database$W3,
 		PRS = new_PRS) %>%
 	pivot_longer(.,
 		cols = starts_with("W"),
 		names_to = "wave",
 		values_to = "status") %>%
 	mutate(group = factor(
-      paste(wave, status),
-      levels = c(
-        "W0 Case", "W0 Control",
-        "W1 Case", "W1 Control",
-        "W2 Case", "W2 Control")))
+		paste(wave, status),
+		levels = c(
+			"W0 Case", "W0 Control",
+			"W1 Case", "W1 Control",
+			"W2 Case", "W2 Control",
+			"W3 Case", "W3 Control")))
 
 ggthemr("fresh")
 # I wanted to make each for wave (the same color scheme i was using)
@@ -70,19 +75,22 @@ final <- ggplot(for_plot, aes(x = group, y = PRS, fill = wave)) +
     alpha = 0.5,
 	outlier.colour = "red",
 	outlier.size = 2) +
-  	scale_fill_manual(
-		values = c(
-			W0 = "#65ADC2",
-			W1 = "#233B43",
-			W2 = "#E84646")) +
-	scale_x_discrete(
-		labels = c(
-			"W0 Case" = "Case",
-			"W0 Control" = "Control",
-			"W1 Case" = "Case",
-			"W1 Control" = "Control",
-			"W2 Case" = "Case",
-			"W2 Control" = "Control")) +
+scale_fill_manual(
+	values = c(
+		W0 = "#65ADC2",
+		W1 = "#233B43",
+		W2 = "#E84646",
+		W3 = "#9B59B6")) +
+scale_x_discrete(
+	labels = c(
+		"W0 Case" = "Case",
+		"W0 Control" = "Control",
+		"W1 Case" = "Case",
+		"W1 Control" = "Control",
+		"W2 Case" = "Case",
+		"W2 Control" = "Control",
+		"W3 Case" = "Case",
+		"W3 Control" = "Control")) +
 	labs(x = "") +
 	theme_publish(base_size = 10) +
 	theme(

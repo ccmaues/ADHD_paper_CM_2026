@@ -178,9 +178,9 @@ str(prs)
 # 10. Build raw analysis database
 # -------------------------------------------------------------------------
 data <-
-  demographics %>%
-  inner_join(longitudinal_wide, by = "IID") %>%
-  left_join(prs, by = "IID") %>%
+  reduce(
+    list(demographics, longitudinal_wide, prs),
+    inner_join, by = "IID") %>%
   mutate(
     site = factor(site, levels = c("SP", "RS")),
     gender = factor(gender, levels = c("Female", "Male")),
@@ -326,26 +326,37 @@ family_hist <-
   mutate(
     parent_mania = ifelse(imini_cur_man != 0 | imini_lif_man != 0, 1, 0),
     # Retained exactly from original code
-    parent_dep = ifelse(imini_cur_dep != 0 | imini_cur_rdep != 0, 1,0),
-    parent_panic = ifelse(imini_cur_panic != 0 | imini_lif_panic != 0, 1,0),
-    parent_psych = ifelse(imini_cur_psych != 0 | imini_lif_psych != 0, 1,0),
-    parent_adhd = ifelse(imini_cur_adhd != 0 | imini_child_adhd != 0, 1,0),
+    parent_dep = ifelse(imini_cur_dep != 0 | imini_cur_rdep != 0, 1, 0),
+    parent_panic = ifelse(imini_cur_panic != 0 | imini_lif_panic != 0, 1, 0),
+    parent_psych = ifelse(imini_cur_psych != 0 | imini_lif_psych != 0, 1, 0),
+    parent_adhd = ifelse(imini_cur_adhd != 0 | imini_child_adhd != 0, 1, 0),
     parent_alc = ifelse(imini_cur_alcdep != 0 | imini_cur_alcabus != 0, 1, 0),
     parent_drug = ifelse(imini_cur_drugdep != 0 |  imini_cur_drugabus != 0, 1, 0),
+    any_hist = as.integer(if_any(
+      c(parent_mania, parent_dep,
+        parent_panic, parent_psych,
+        parent_adhd, parent_alc,
+        parent_drug), ~ .x == 1)),
     across(where(is.numeric), as.factor)) %>%
-  select(1, starts_with("parent_"), 12) %>%
-  rename(parent_anx = 9)
+  rename(parent_anx = imini_cur_any_anx) %>%
+  select(1, starts_with("parent_"), 12, any_hist)
+
+# add the any_hist here
 
 str(family_hist)
 # -------------------------------------------------------------------------
 # 16. Final article database
 # -------------------------------------------------------------------------
 proband_data <-
-  data %>%
-  filter(IID %in% all_pca$IID) %>%
-  select(-W0, -W1, -W2, -W3, -age_W0, -age_W1, -age_W2, -age_W3) %>%
-  inner_join(imputed_pheno, by = "IID") %>%
-  inner_join(new_age, by = "IID")
+  list(
+    data %>%
+      filter(IID %in% all_pca$IID) %>%
+      select(-starts_with("W"), -starts_with("age_W")),
+    imputed_pheno,
+    new_age) %>%
+  reduce(inner_join, by = "IID") %>%
+  select(IID, site, gender, PRS, starts_with("age_"), starts_with("W")) %>%
+  mutate(W3 = ifelse(W3 == 2, 1, 0))
 
 str(proband_data)
 
@@ -376,13 +387,6 @@ print(
     is.na(
       cass_BHRC$proband_data[
         c("age_W0", "age_W1", "age_W2", "age_W3")])))
-
-cat("\nHeight missingness:\n")
-print(
-  colSums(
-    is.na(
-      cass_BHRC$proband_data[
-        c("p_height_W0", "p_height_W1", "p_height_W2", "p_height_W3")])))
 
 # -------------------------------------------------------------------------
 # 18. Save final RDS

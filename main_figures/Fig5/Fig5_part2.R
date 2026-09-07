@@ -1,12 +1,10 @@
 # Prediction over time
 pacman::p_load(dplyr, data.table, tidyr, DescTools, nsROC, PRROC, envalysis, ggplot2, ggthemr, patchwork)
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
-database <- data$proband_data %>% # latest version
-	mutate(
-		W0 = ifelse(W0 == 2, 1, 0),
-		W1 = ifelse(W1 == 2, 1, 0),
-		W2 = ifelse(W2 == 2, 1, 0)) %>%
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
+database <-
+	data$proband_data %>%
+	mutate(across(c(W0, W1, W2, W3), ~ ifelse(.x == 2, 1, .x))) %>%
   inner_join(., data$PCA_all_samples, by = "IID")
 
 # Family history
@@ -35,76 +33,50 @@ database <-
 ggthemr("fresh")
 
 # add familty history
-fp1 <-
-  data.frame(
-    risk = factor(c(1, 2, 3, 4, 5), levels = c(1, 2, 3, 4, 5)),
-    wave = c("W0", "W0", "W0", "W0", "W0", "W1", "W1", "W1", "W1", "W1", "W2", "W2", "W2", "W2", "W2"),
-    R2 = c(
-      PseudoR2(glm(W0 ~ PRS + gender + any_hist + age_W0, family = "binomial", data = filter(database, risk == 1)), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + gender + any_hist + age_W0, family = "binomial", data = filter(database, risk == 2)), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + gender + any_hist + age_W0, family = "binomial", data = filter(database, risk == 3)), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + gender + any_hist + age_W0, family = "binomial", data = filter(database, risk == 4)), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + gender + any_hist + age_W0, family = "binomial", data = filter(database, risk == 5)), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + gender + any_hist + age_W1, family = "binomial", data = filter(database, risk == 1)), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + gender + any_hist + age_W1, family = "binomial", data = filter(database, risk == 2)), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + gender + any_hist + age_W1, family = "binomial", data = filter(database, risk == 3)), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + gender + any_hist + age_W1, family = "binomial", data = filter(database, risk == 4)), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + gender + any_hist + age_W1, family = "binomial", data = filter(database, risk == 5)), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + gender + any_hist + age_W2, family = "binomial", data = filter(database, risk == 1)), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + gender + any_hist + age_W2, family = "binomial", data = filter(database, risk == 2)), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + gender + any_hist + age_W2, family = "binomial", data = filter(database, risk == 3)), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + gender + any_hist + age_W2, family = "binomial", data = filter(database, risk == 4)), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + gender + any_hist + age_W2, family = "binomial", data = filter(database, risk == 5)), which = "Nagelkerke")))
+waves <- c("W0", "W1", "W2", "W3")
+calc_r2 <- function(data, sex = NULL) {
+	map_dfr(waves, \(w)
+		map_dfr(1:5, \(r) {
+			df <- filter(data, risk == r)
+			if (!is.null(sex)) df <- filter(df, gender == sex)
+			formula <- if (is.null(sex))
+				as.formula(paste0(w, " ~ PRS + gender + any_hist + age_", w))
+			else
+				as.formula(paste0(w, " ~ PRS + any_hist + age_", w))
+			tibble(
+				risk = r,
+				wave = w,
+				R2 = PseudoR2(
+					glm(formula, family = "binomial", data = df),
+					which = "Nagelkerke"))}))}
 
-fp2 <-
-  data.frame(
-    risk = factor(c(1, 2, 3, 4, 5), levels = c(1, 2, 3, 4, 5)),
-    wave = c("W0", "W0", "W0", "W0", "W0", "W1", "W1", "W1", "W1", "W1", "W2", "W2", "W2", "W2", "W2"),
-    R2 = c(
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 1 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 2 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 3 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 4 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 5 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 1 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 2 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 3 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 4 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 5 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 1 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 2 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 3 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 4 & gender == "Male")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 5 & gender == "Male")), which = "Nagelkerke")))
+fp1 <- calc_r2(database)
+fp2 <- calc_r2(database, "Male")
+fp3 <- calc_r2(database, "Female")
 
-fp3 <-
-  data.frame(
-    risk = factor(c(1, 2, 3, 4, 5), levels = c(1, 2, 3, 4, 5)),
-    wave = c("W0", "W0", "W0", "W0", "W0", "W1", "W1", "W1", "W1", "W1", "W2", "W2", "W2", "W2", "W2"),
-    R2 = c(
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 1 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 2 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 3 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 4 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W0 ~ PRS + any_hist + age_W0, family = "binomial", data = filter(database, risk == 5 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 1 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 2 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 3 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 4 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W1 ~ PRS + any_hist + age_W1, family = "binomial", data = filter(database, risk == 5 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 1 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 2 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 3 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 4 & gender == "Female")), which = "Nagelkerke"),
-      PseudoR2(glm(W2 ~ PRS + any_hist + age_W2, family = "binomial", data = filter(database, risk == 5 & gender == "Female")), which = "Nagelkerke")))
+fp1 <- fp1 %>% mutate(risk = factor(risk, levels = 1:5), wave = factor(wave, levels = waves))
+fp2 <- fp2 %>% mutate(risk = factor(risk, levels = 1:5), wave = factor(wave, levels = waves))
+fp3 <- fp3 %>% mutate(risk = factor(risk, levels = 1:5), wave = factor(wave, levels = waves))
 
 new_x_axis <- c("1st", "2nd", "3rd", "4th", "5th")
 
 p1 <-
   ggplot(fp1, aes(risk, R2 * 100, fill = wave, color = wave, group = wave)) +
     geom_col(position = position_dodge(width = 0.8), width = 0.6) +
-    scale_y_continuous(n.breaks = 8, limits = c(0, 20)) +
+    scale_y_continuous(n.breaks = 8, limits = c(0, 25)) +
     scale_x_discrete(labels = new_x_axis) +
+    scale_fill_manual(
+      values = c(
+        W0 = "#65ADC2",
+        W1 = "#233B43",
+        W2 = "#E84646",
+        W3 = "#9B59B6")) +
+    scale_color_manual(
+      values = c(
+        W0 = "#65ADC2",
+        W1 = "#233B43",
+        W2 = "#E84646",
+        W3 = "#9B59B6")) +
     labs(y = "Pseudo-R²", x = "PRS quintile") +
     theme_publish(base_size = 12) +
     theme(
@@ -114,8 +86,20 @@ p1 <-
 p2 <-
   ggplot(fp2, aes(risk, R2 * 100, fill = wave, color = wave, group = wave)) +
     geom_col(position = position_dodge(width = 0.8), width = 0.6) +
-    scale_y_continuous(n.breaks = 8, limits = c(0, 20)) +
+    scale_y_continuous(n.breaks = 8, limits = c(0, 25)) +
     scale_x_discrete(labels = new_x_axis) +
+    scale_fill_manual(
+      values = c(
+        W0 = "#65ADC2",
+        W1 = "#233B43",
+        W2 = "#E84646",
+        W3 = "#9B59B6")) +
+    scale_color_manual(
+      values = c(
+        W0 = "#65ADC2",
+        W1 = "#233B43",
+        W2 = "#E84646",
+        W3 = "#9B59B6")) +
     labs(y = "", x = "PRS quintile") +
     theme_publish(base_size = 12) +
     theme(
@@ -126,8 +110,20 @@ p2 <-
 p3 <-
   ggplot(fp3, aes(risk, R2 * 100, fill = wave, color = wave, group = wave)) +
     geom_col(position = position_dodge(width = 0.8), width = 0.6) +
-    scale_y_continuous(n.breaks = 8, limits = c(0, 20)) +
+    scale_y_continuous(n.breaks = 8, limits = c(0, 25)) +
     scale_x_discrete(labels = new_x_axis) +
+    scale_fill_manual(
+      values = c(
+        W0 = "#65ADC2",
+        W1 = "#233B43",
+        W2 = "#E84646",
+        W3 = "#9B59B6")) +
+    scale_color_manual(
+      values = c(
+        W0 = "#65ADC2",
+        W1 = "#233B43",
+        W2 = "#E84646",
+        W3 = "#9B59B6")) +
     labs(y = "", x = "PRS quintile") +
     theme_publish(base_size = 12) +
     theme(

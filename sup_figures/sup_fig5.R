@@ -1,13 +1,13 @@
 pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, broom)
 
-data <- readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")
+data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 database <-
   data$proband_data %>% # latest version
 	filter(gender == "Male") %>%
 	inner_join(., data$PCA_by_sex, by = "IID")
 
 # change for the females subset
-val_10 <- fread("D:/cass_HD/DD_CM_backup/PCA_files_cass/cass_final_PCA/all_males_PCA.eigenval")
+val_10 <- fread("C:/Users/cassi/Documents/work/0_external_files/w3_pca/cass_806_W3_PCA.eigenval")
 
 var_exp10 <- val_10 / sum(val_10)
 
