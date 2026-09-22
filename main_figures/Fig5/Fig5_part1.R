@@ -6,24 +6,75 @@ database <-
 	data$proband_data %>%
 	mutate(across(c(W0, W1, W2, W3), ~ ifelse(.x == 2, 1, .x)))
 
-# PCA
+# PCA per subset
 all_pcs <-
   data$PCA_all_samples %>%
   inner_join(., select(database, IID, PRS, gender), by = "IID")
 
-# PRS correction
+females_pcs <-
+	filter(database, gender == "Female") %>%
+	inner_join(., data$PCA_by_sex, by = "IID")
+
+males_pcs <-
+	filter(database, gender == "Male") %>%
+	inner_join(., data$PCA_by_sex, by = "IID")
+
+# PRS correction per subset
 shapiro.test(all_pcs$PRS)
-new_PRS <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = all_pcs))
-database <- cbind(select(database, -PRS), PRS = new_PRS)
 
-# Stratify by sex
-females <- filter(database, gender == "Female")
-males <- filter(database, gender == "Male")
+new_PRS <-
+	all_pcs %>%
+	mutate(
+		PRS = residuals(glm(
+			PRS ~ PC1 + PC2 + PC3 + PC4,
+			family = "gaussian",
+			data = .))) %>%
+	select(IID, PRS)
 
-## We used the original PRS for the risk estimation here
-## Higher sample size should be used for quantile
-## In this one we just want to see the pattern of the first column
-## thus, we use its adjusted PRS
+database <-
+	database %>%
+	select(-PRS) %>%
+	inner_join(new_PRS, by = "IID") %>%
+	mutate(risk = ntile(PRS, 5)) %>%
+	inner_join(hist, by = "IID")
+
+
+shapiro.test(females_pcs$PRS)
+
+new_PRS_fem <-
+	females_pcs %>%
+	mutate(
+		PRS = residuals(glm(
+			PRS ~ PC1 + PC2 + PC3 + PC4,
+			family = "gaussian",
+			data = .))) %>%
+	select(IID, PRS)
+
+females <-
+	females_pcs %>%
+	select(-PRS) %>%
+	inner_join(new_PRS_fem, by = "IID") %>%
+	mutate(risk = ntile(PRS, 5)) %>%
+	inner_join(hist, by = "IID")
+
+shapiro.test(males_pcs$PRS)
+
+new_PRS_man <-
+	males_pcs %>%
+	mutate(
+		PRS = residuals(glm(
+			PRS ~ PC1 + PC2 + PC3 + PC4,
+			family = "gaussian",
+			data = .))) %>%
+	select(IID, PRS)
+
+males <-
+	males_pcs %>%
+	select(-PRS) %>%
+	inner_join(new_PRS_man, by = "IID") %>%
+	mutate(risk = ntile(PRS, 5)) %>%
+	inner_join(hist, by = "IID")
+
 calc_prev <- function(data, n, column_name, wave) {
   df <-
     select(data, all_of(column_name), wave) %>%
@@ -126,6 +177,7 @@ males_long <-
 		risk = factor(risk, levels = c(1, 2, 3, 4, 5)))
 
 new_x_axis <- c("1st", "2nd", "3rd", "4th", "5th")
+
 ggthemr("fresh")
 
 p1 <-
@@ -133,7 +185,7 @@ p1 <-
 		geom_line(linetype = "solid", linewidth = 1, alpha = 0.5) +
 		geom_point(size = 4) +
 		scale_x_discrete(labels = new_x_axis) +
-		scale_y_continuous(n.breaks = 10, limits = c(5, 35)) +
+		scale_y_continuous(n.breaks = 10, limits = c(5, 40)) +
 		scale_color_manual(
 			values = c(
 				W0 = "#65ADC2",
@@ -157,7 +209,7 @@ p2 <-
 		geom_line(linetype = "solid", linewidth = 1, alpha = 0.5) +
 		geom_point(size = 4) +
 		scale_x_discrete(labels = new_x_axis) +
-		scale_y_continuous(n.breaks = 10, limits = c(5, 35)) +
+		scale_y_continuous(n.breaks = 10, limits = c(5, 40)) +
 		scale_color_manual(
 			values = c(
 				W0 = "#65ADC2",
@@ -179,7 +231,7 @@ p3 <-
 		geom_line(linetype = "solid", linewidth = 1, alpha = 0.5) +
 		geom_point(size = 4) +
 		scale_x_discrete(labels = new_x_axis) +
-		scale_y_continuous(n.breaks = 10, limits = c(5, 35)) +
+		scale_y_continuous(n.breaks = 10, limits = c(5, 40)) +
 		scale_color_manual(
 			values = c(
 				W0 = "#65ADC2",
@@ -197,6 +249,51 @@ p3 <-
       axis.ticks.x = element_blank(),
       axis.line.x = element_blank(),
 	  panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.3))
+
+# Case sample size per risk and wave
+wave_cols <- c(Control = "#D9D9D9", W0 = "#65ADC2", W1 = "#233B43", W2 = "#E84646", W3 = "#9B59B6")
+
+make_n_plot <- function(data, show_y = TRUE) {
+  wave_offsets <- c(
+    W0 = -0.27,
+    W1 = -0.09,
+    W2 =  0.09,
+    W3 =  0.27)
+
+  n_df <-
+    data %>%
+    filter(!is.na(diagnosis)) %>%
+    mutate(
+      risk = factor(risk, levels = c(1, 2, 3, 4, 5)),
+      wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
+      diagnosis = factor(diagnosis, levels = c(0, 1), labels = c("Control", "Case"))) %>%
+    count(risk, wave, diagnosis, name = "n") %>%
+    mutate(
+      x = as.numeric(risk) + unname(wave_offsets[as.character(wave)]),
+      fill_group = ifelse(diagnosis == "Control", "Control", as.character(wave)),
+      fill_group = factor(fill_group, levels = c("Control", "W0", "W1", "W2", "W3"))) %>%
+    arrange(risk, wave, diagnosis)
+  
+  ggplot(n_df, aes(x = x, y = n, fill = fill_group)) +
+    geom_col(width = 0.16) +
+    scale_x_continuous(
+      breaks = 1:5,
+      labels = new_x_axis,
+      expand = expansion(mult = c(0.03, 0.03))) +
+    scale_fill_manual(values = wave_cols) +
+    labs(
+      x = "",
+      y = ifelse(show_y, "N", ""),
+      fill = "") +
+    theme_publish(base_size = 10) +
+    theme(
+      legend.position = "none",
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor = element_blank())}
+
+n1 <- make_n_plot(database_long, show_y = TRUE)
+n2 <- make_n_plot(males_long, show_y = FALSE)
+n3 <- make_n_plot(females_long, show_y = FALSE)
 
 ## Delta plots
 p6 <-
@@ -224,9 +321,9 @@ p8 <-
     theme_publish(base_size = 12)
 
 final <-
-  ((p1 / p6 + plot_layout(heights = c(1, 0.5))) |
-   (p2 / p7 + plot_layout(heights = c(1, 0.5))) |
-   (p3 / p8 + plot_layout(heights = c(1, 0.5)))) +
+    ((p1 / n1 / p6 + plot_layout(heights = c(1, 0.45, 0.5))) |
+     (p2 / n2 / p7 + plot_layout(heights = c(1, 0.45, 0.5))) |
+     (p3 / n3 / p8 + plot_layout(heights = c(1, 0.45, 0.5)))) +
   plot_annotation(tag_levels = "A")
 
 ggsave(
@@ -234,7 +331,7 @@ ggsave(
   final,
   device = "png",
   width = 30,
-  height = 15,
+  height = 20,
   units = "cm",
   dpi = 300,
   bg = "white")

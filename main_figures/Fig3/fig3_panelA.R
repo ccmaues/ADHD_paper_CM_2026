@@ -15,18 +15,23 @@ all_pcs <-
 	inner_join(., select(database, IID, PRS, gender), by = "IID")
 
 # adjusted PRS values (risk strata info)
-new_PRS <- residuals(glm(
-	PRS ~ PC1 + PC2 + PC3 + PC4,
-	family = "gaussian",
-	data = all_pcs))
+new_PRS <-
+	all_pcs %>%
+	mutate(
+		PRS = residuals(glm(
+			PRS ~ PC1 + PC2 + PC3 + PC4,
+			family = "gaussian",
+			data = .))) %>%
+	select(IID, PRS)
 
 # plotting object
 for_plot <-
-	cbind(select(database, IID, gender), PRS = new_PRS) %>%
+	database %>%
+	select(IID, gender) %>%
+	inner_join(new_PRS, by = "IID") %>%
 	mutate(n.risk = ntile(PRS, 10)) %>%
-	inner_join(., data$PCA_all_samples, by = "IID") %>%
+	inner_join(data$PCA_all_samples, by = "IID") %>%
 	select(gender, n.risk, PC1, PC2)
-
 # main theme
 ggthemr("grape")
 

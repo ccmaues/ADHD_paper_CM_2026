@@ -2,21 +2,25 @@ pacman::p_load(dplyr, data.table, ggthemr, ggplot2, envalysis, broom, survival, 
 # make HZ col plot with stratification by gender
 source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
 
-wd <-
-	inner_join(survival_data, hist, by = "IID") %>%
+females <-
+	inner_join(survival_females, hist, by = "IID") %>%
+	select(-IID)
+
+males <-
+	inner_join(survival_males, hist, by = "IID") %>%
 	select(-IID)
 
 # the only difference, is that I have put the percentile
 # out of the strata function and added the family_history
 female <-
   tidy(
-    coxph(Surv(time, status) ~ percentile + site + any_hist, data = filter(wd, gender == "Female")),
+    coxph(Surv(time, status) ~ percentile + site + any_hist, data = females),
     exponentiate = TRUE,
     conf.int = TRUE) %>%
   mutate(group = "Females")
 male <-
   tidy(
-    coxph(Surv(time, status) ~ percentile + site + any_hist, data = filter(wd, gender == "Male")),
+    coxph(Surv(time, status) ~ percentile + site + any_hist, data = males),
     exponentiate = TRUE,
     conf.int = TRUE) %>%
   mutate(group = "Males")

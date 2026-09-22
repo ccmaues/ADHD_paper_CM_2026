@@ -10,29 +10,32 @@ database <-
 
 # PCA
 all_pcs <-
-  data$PCA_all_samples %>%
-  select(IID, PC1, PC2, PC3, PC4) %>%
+  	data$PCA_all_samples %>%
+  	select(IID, PC1, PC2, PC3, PC4) %>%
 	inner_join(., select(data$proband_data, IID, PRS), by = "IID")
 
-new_PRS <- residuals(glm(
-	PRS ~ PC1 + PC2 + PC3 + PC4,
-	family = "gaussian",
-	data = all_pcs)) %>%
-	as.data.frame() %>%
-	cbind(data$proband_data$IID, .) %>%
-	rename(IID = 1, PRS = 2)
+new_PRS <-
+	all_pcs %>%
+	mutate(
+		PRS = residuals(glm(
+			PRS ~ PC1 + PC2 + PC3 + PC4,
+			family = "gaussian",
+			data = .))) %>%
+	select(IID, PRS)
 
 # Family history
-hist <- data$family_history %>%
-  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0)) %>%
+hist <-
+	data$family_history %>%
+	mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0)) %>%
 	select(IID, any_hist)
 
 # Working data
 wd <-
 	plyr::join_all(
 		list(database, new_PRS, hist),
-		by = "IID", type = "inner") %>%
-  	mutate(decile = ntile(PRS, 10)) %>%
+		by = "IID",
+		type = "inner") %>%
+	mutate(decile = ntile(PRS, 10)) %>%
 	select(!c(PRS, IID))
 
 # Models
@@ -43,32 +46,32 @@ models <-
 		w2 = glm(W2 ~ factor(decile) + gender + any_hist + age_W2, family = binomial, data = wd),
 		w3 = glm(W3 ~ factor(decile) + gender + any_hist + age_W3, family = binomial, data = wd)) %>%
 	lapply(function(mod) {
-		tidy(mod,
-			exponentiate = TRUE,
-			conf.int = TRUE) %>%
-			filter(grepl("decile", term)) %>%
-			mutate(decile = 2:10) %>%
-			bind_rows(
-				tibble(
-					decile = 1,
-					estimate = 1,
-					conf.low = 1,
-					conf.high = 1)) %>%
-			arrange(decile)})
+		tidy(mod, exponentiate = TRUE, conf.int = TRUE) %>%
+		filter(grepl("decile", term)) %>%
+		mutate(
+			decile = 2:10,
+			sig = p.value < 0.05) %>%
+		bind_rows(
+			tibble(
+				decile = 1,
+				estimate = 1,
+				conf.low = 1,
+				conf.high = 1,
+				p.value = NA,
+				sig = FALSE)) %>%
+		arrange(decile)})
 
 ggthemr("fresh")
 # -----------------------
 # All dataset
 # -----------------------
 ylims <- c(
-	min(
-		models$w0$conf.low,
+	min(models$w0$conf.low,
 		models$w1$conf.low,
 		models$w2$conf.low,
 		models$w3$conf.low,
 		na.rm = TRUE),
-	max(
-		models$w0$conf.high,
+	max(models$w0$conf.high,
 		models$w1$conf.high,
 		models$w2$conf.high,
 		models$w3$conf.high,
@@ -80,6 +83,13 @@ p1 <-
 		geom_line(color = "#4e4e4e") +
 		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#65acc2a1", width = 0, linewidth = 0.3) +
 		geom_point(size = 2, color = "#65ADC2") +
+		geom_point(
+			data = filter(models$w0, sig),
+			shape = 21,
+			size = 3.2,
+			stroke = 0.8,
+			fill = NA,
+			color = "#4e4e4e") +
 		coord_cartesian(ylim = ylims) +
 		scale_y_continuous(n.breaks = 7) +
 		scale_x_continuous(
@@ -87,9 +97,8 @@ p1 <-
 			labels = c(
 				"1st", "2nd", "3rd", "4th", "5th",
 				"6th", "7th", "8th", "9th", "10th")) +
-		theme_publish(base_size = 10) +
 		labs(x = "", y = "") +
-		theme_publish()
+		theme_publish(base_size = 10)
 
 p2 <-
 	ggplot(models$w1, aes(x = decile, y = estimate)) +
@@ -97,6 +106,13 @@ p2 <-
 		geom_line(color = "#4e4e4e") +
 		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#233b4394", width = 0, linewidth = 0.3) +
 		geom_point(size = 2, color = "#233B43") +
+		geom_point(
+			data = filter(models$w1, sig),
+			shape = 21,
+			size = 3.2,
+			stroke = 0.8,
+			fill = NA,
+			color = "#4e4e4e") +
 		coord_cartesian(ylim = ylims) +
 		scale_y_continuous(n.breaks = 7) +
 		scale_x_continuous(
@@ -104,9 +120,8 @@ p2 <-
 			labels = c(
 				"1st", "2nd", "3rd", "4th", "5th",
 				"6th", "7th", "8th", "9th", "10th")) +
-		theme_publish(base_size = 10) +
 		labs(x = "", y = "Odds Ratio") +
-		theme_publish()
+		theme_publish(base_size = 10)
 
 p3 <-
 	ggplot(models$w2, aes(x = decile, y = estimate)) +
@@ -114,6 +129,13 @@ p3 <-
 		geom_line(color = "#4e4e4e") +
 		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#e84646a2", width = 0, linewidth = 0.3) +
 		geom_point(size = 2, color = "#E84646") +
+		geom_point(
+			data = filter(models$w2, sig),
+			shape = 21,
+			size = 3.2,
+			stroke = 0.8,
+			fill = NA,
+			color = "#4e4e4e") +
 		coord_cartesian(ylim = ylims) +
 		scale_y_continuous(n.breaks = 7) +
 		scale_x_continuous(
@@ -121,9 +143,8 @@ p3 <-
 			labels = c(
 				"1st", "2nd", "3rd", "4th", "5th",
 				"6th", "7th", "8th", "9th", "10th")) +
-		theme_publish(base_size = 10) +
 		labs(x = "", y = "") +
-		theme_publish()
+		theme_publish(base_size = 10)
 
 p4 <-
 	ggplot(models$w3, aes(x = decile, y = estimate)) +
@@ -131,6 +152,13 @@ p4 <-
 		geom_line(color = "#4e4e4e") +
 		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#9b59b694", width = 0, linewidth = 0.3) +
 		geom_point(size = 2, color = "#9B59B6") +
+		geom_point(
+			data = filter(models$w3, sig),
+			shape = 21,
+			size = 3.2,
+			stroke = 0.8,
+			fill = NA,
+			color = "#4e4e4e") +
 		coord_cartesian(ylim = ylims) +
 		scale_y_continuous(n.breaks = 7) +
 		scale_x_continuous(
@@ -138,11 +166,13 @@ p4 <-
 			labels = c(
 				"1st", "2nd", "3rd", "4th", "5th",
 				"6th", "7th", "8th", "9th", "10th")) +
-		theme_publish(base_size = 10) +
 		labs(x = "PRS risk strata", y = "") +
-		theme_publish()
+		theme_publish(base_size = 10)
 
-final <- p1 / p2 / p3 / p4 + plot_annotation(tag_levels = "A")
+final <-
+	p1 / p2 / p3 / p4 +
+	plot_annotation(tag_levels = "A") &
+	theme(aspect.ratio = 0.4)
 
 ggsave(
 	"fig3_panelC.png",

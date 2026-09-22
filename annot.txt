@@ -1,0 +1,9 @@
+# PCA with highlight of those who converted from W2 to W3 [2] done
+# 54 profile [1] done
+# New risk strata per set [3] done
+# How accurate is ADHD eval in adults - other diagnosis? [4] late
+# might add PRS-ADHD for adults? [?] not done
+# Was there ANY diff from W2 to W3 evals? [?] late
+# Use w3_qc [?] not done
+# check the sample size confirmation (1653 vs. 1508 vc. 1400) [4] fuck, idk, need to check it out
+# make a comparison of previous analysis and the one with w3 [5] done

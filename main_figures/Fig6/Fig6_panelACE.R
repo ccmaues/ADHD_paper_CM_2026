@@ -3,17 +3,19 @@ pacman::p_load(dplyr, ggplot2, envalysis, tidyr, patchwork, ggsurvfit, survminer
 source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 hist <-
-  readRDS("D:/cass_HD/DD_CM_backup/cass_BHRC_28042025_ARTICLE.RDS")$family_history %>%
+  readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")$family_history %>%
   mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
 
 #---------------------------------
 # All samples
 #---------------------------------
 wd <-
-  inner_join(survival_data, hist, by = "IID") %>%
-  select(-IID)
+	inner_join(survival_data, hist, by = "IID") %>%
+	select(-IID)
 
-cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + gender + site, data = wd)
+cox <- coxph(
+	Surv(time, status) ~ strata(percentile) + any_hist + gender + site,
+	data = wd)
 fit1 <- survfit(cox)
 
 # Get event prob at 12 yr
@@ -28,7 +30,13 @@ tp1_y <- 1 - s1$surv[3]
 #---------------------------------
 # females
 #---------------------------------
-cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist, data =  filter(wd, gender == "Female"))
+wd_females <-
+	inner_join(survival_females, hist, by = "IID") %>%
+	select(-IID)
+
+cox <- coxph(
+	Surv(time, status) ~ strata(percentile) + any_hist,
+	data = wd_females)
 fit2 <- survfit(cox)
 
 s2 <- summary(fit2, times = 12)
@@ -42,7 +50,13 @@ tp2_y <- 1 - s2$surv[3]
 #---------------------------------
 # males
 #---------------------------------
-cox <- coxph(Surv(time, status) ~ strata(percentile) + any_hist + site, data = filter(wd, gender == "Male"))
+wd_males <-
+	inner_join(survival_males, hist, by = "IID") %>%
+	select(-IID)
+
+cox <- coxph(
+	Surv(time, status) ~ strata(percentile) + any_hist + site,
+	data = wd_males)
 fit3 <- survfit(cox)
 
 s3 <- summary(fit3, times = 12)
@@ -87,12 +101,12 @@ p1 <-
 # Panel C
 surv <-
   ggsurvplot(
-    fit2,                                      # objeto com a função
-    data = wd,                                # objeto criador da função
+    fit2,                                     # objeto com a função
+    data = wd_males,                          # objeto criador da função
     fun = "event",                            # função de transformação da curva de sobrevivência
     xlab = "Age (yr)",                        # titulo do eixo x
     risk.table = FALSE,                       # tabela de risco
-    ggtheme = theme_publish(base_size = 10),   # tema
+    ggtheme = theme_publish(base_size = 10),  # tema
     risk.table.y.text = FALSE,                # usar legenda de linha
     censor.size = 2.2,                        # tamanho do censor
     size = 0.6)                               # tamanho da linha
@@ -109,7 +123,7 @@ p2 <-
   geom_point(aes(x = 12, y = bt2_y), color = "#129990", size = 1.5) +
   geom_text(aes(x = 12.5, y = tp2_y, label = tp2), color = "#670D2F", size = 3, hjust = -0.1) +
   geom_text(aes(x = 12.5, y = bt2_y, label = bt2), color = "#129990", size = 3, hjust = -0.1) +
-  labs(y = "Cumulative event probability", x = "", title = "females") +
+  labs(y = "Cumulative event probability", x = "", title = "males") +
   theme_publish(base_size = 10) +
   theme(
     legend.position = "none",
@@ -118,8 +132,8 @@ p2 <-
 # Panel E
 surv <-
   ggsurvplot(
-    fit3,                                      # objeto com a função
-    data = wd,                                # objeto criador da função
+    fit3,                                     # objeto com a função
+    data = wd_females,                        # objeto criador da função
     fun = "event",                            # função de transformação da curva de sobrevivência
     xlab = "Age (yr)",                        # titulo do eixo x
     risk.table = FALSE,                       # tabela de risco
@@ -140,7 +154,7 @@ p3 <-
   geom_point(aes(x = 12, y = bt3_y), color = "#129990", size = 1.5) +
   geom_text(aes(x = 12.5, y = tp3_y, label = tp3), color = "#670D2F", size = 3, hjust = -0.1) +
   geom_text(aes(x = 12.5, y = bt3_y, label = bt3), color = "#129990", size = 3, hjust = -0.1) +
-  labs(y = "", x = "Age (yr)", title = "Males") +
+  labs(y = "", x = "Age (yr)", title = "females") +
   theme_publish(base_size = 10) +
   theme(
     legend.position = "none",

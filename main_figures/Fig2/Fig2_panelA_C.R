@@ -12,7 +12,7 @@ hist <-
 database <-
   data$proband_data %>% # latest version
   inner_join(., hist, by = "IID") %>%
- 	mutate(across(c(W0, W1, W2), ~ifelse(.x == 2, 1, 0)))
+ 	mutate(across(c(W0, W1, W2), ~ifelse(.x == 2, 1, 0))) # W3 is already as 1/0
 
 datasets <- list(
   all = database %>%
