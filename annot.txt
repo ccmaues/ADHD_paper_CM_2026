@@ -6,4 +6,8 @@
 # Was there ANY diff from W2 to W3 evals? [?] late
 # Use w3_qc [?] not done
 # check the sample size confirmation (1653 vs. 1508 vc. 1400) [4] fuck, idk, need to check it out
+    # 43 PCA participants who are not in the current longitudinal/article cohort.
+    # CURRENT COHORT: 1492 (out 29 )
+    # PCA FILE :1506 (out 43)
+    # shared: 1463
 # make a comparison of previous analysis and the one with w3 [5] done

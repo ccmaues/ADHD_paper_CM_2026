@@ -49,7 +49,7 @@ get_metrics <- function(wave, df, sex_adjust = TRUE) {
       min.compute = TRUE, rand.compute = TRUE)$auc.integral)
   tibble(wave = wave, predictor = c("R2", "AUROC", "AUCPR"), value = c(r2, auroc, aucpr))}
 # -----------------------
-
+nrow(data)
 waves <- c("W0", "W1", "W2", "W3")
 tabs <- map(datasets, correct_prs)
 
@@ -65,110 +65,132 @@ for_plot <- imap_dfr(
 # Plot dataset
 ggthemr("fresh")
 
+# Plot dataset
+ggthemr("fresh")
+
 p1 <-
-	filter(for_plot, subset == "all") %>%
-	ggplot(aes(x = wave, y = value * 100, group = 1, color = wave)) +
-		geom_line(size = 1.2, color = "#c7c7c7") +
-		geom_point(size = 3) +
-	scale_color_manual(
-		values = c(
-			W0 = "#65ADC2",
-			W1 = "#233B43",
-			W2 = "#E84646",
-			W3 = "#9B59B6")) +
-		facet_wrap(~predictor, scales = "free_y", ncol = 1) +
-		scale_x_discrete(
-			expand = expansion(mult = c(0.05, 0.20))) +
-		scale_y_continuous(
-			breaks = function(x) seq(min(x), max(x), length.out = 4),
-			labels = \(x) sprintf("%.2f", x),
-			expand = expansion(mult = c(0.08, 0.15))) +
-		coord_cartesian(clip = "off") +
-		labs(x = "", y = "Predictor") +
-		theme_publish(base_size = 12) +
-		theme(
-			panel.grid.major.y = element_line(
-				color = "grey90",
-				linetype = "dashed",
-				linewidth = 0.4),
-				axis.line = element_line(linewidth = 0.2),
-				plot.title = element_text(face = "bold", size = 14),
-				plot.subtitle = element_text(size = 11, color = "grey40"),
-				plot.margin = margin(10, 30, 10, 10),
-				legend.position = "none")
+    filter(for_plot, subset == "all") %>%
+    ggplot(aes(x = wave, y = value * 100, group = predictor, linetype = predictor, shape = predictor)) +
+        geom_line(size = 0.5, color = "#828282") +
+        geom_point(aes(color = wave), size = 3) +
+        scale_color_manual(
+            values = c(
+                W0 = "#65ADC2",
+                W1 = "#233B43",
+                W2 = "#E84646",
+                W3 = "#9B59B6")) +
+        scale_linetype_manual(
+            values = c(
+                "R²" = "solid",
+                "AUROC" = "dashed",
+                "AUCPR" = "dotted")) +
+        scale_shape_manual(values = c("R²" = 16, "AUROC" = 17, "AUCPR" = 15)) +
+        scale_x_discrete(expand = expansion(mult = c(0.05, 0.20))) +
+        scale_y_continuous(
+            limits = c(0, 65),
+            breaks = seq(0, 60, by = 10),
+            labels = \(x) sprintf("%.2f", x),
+            expand = expansion(mult = c(0.02, 0.05))) +
+        coord_cartesian(clip = "off") +
+        labs(x = "",
+             y = "Predictor",
+             linetype = "Metric",
+             shape = "Metric") +
+        theme_publish(base_size = 12) +
+        theme(
+            panel.grid.major.y = element_line(color = "grey90", linetype = "dashed", linewidth = 0.4),
+            axis.line = element_line(linewidth = 0.2),
+            plot.title = element_text(face = "bold", size = 14),
+            plot.subtitle = element_text(size = 11, color = "grey40"),
+            plot.margin = margin(10, 30, 10, 10),
+            legend.position = "bottom") +
+        guides(color = "none")
 
 p2 <-
-	filter(for_plot, subset == "males") %>%
-	ggplot(aes(x = wave, y = value * 100, group = 1, color = wave)) +
-		geom_line(size = 1.2, color = "#c7c7c7") +
-		geom_point(size = 3) +
-		scale_color_manual(
-			values = c(
-				W0 = "#65ADC2",
-				W1 = "#233B43",
-				W2 = "#E84646",
-				W3 = "#9B59B6")) +
-		facet_wrap(~predictor, scales = "free_y", ncol = 1) +
-		scale_x_discrete(
-			expand = expansion(mult = c(0.05, 0.20))) +
-		scale_y_continuous(
-			breaks = function(x) seq(min(x), max(x), length.out = 4),
-			labels = \(x) sprintf("%.2f", x),
-			expand = expansion(mult = c(0.08, 0.15))) +
-		coord_cartesian(clip = "off") +
-		labs(x = "Wave", y = "") +
-		theme_publish(base_size = 12) +
-		theme(
-			panel.grid.major.y = element_line(
-				color = "grey90",
-				linetype = "dashed",
-				linewidth = 0.4),
-				axis.line = element_line(linewidth = 0.2),
-				plot.title = element_text(face = "bold", size = 14),
-				plot.subtitle = element_text(size = 11, color = "grey40"),
-				plot.margin = margin(10, 30, 10, 10),
-				legend.position = "none")
+    filter(for_plot, subset == "males") %>%
+    ggplot(aes(x = wave, y = value * 100, group = predictor, linetype = predictor, shape = predictor)) +
+        geom_line(size = 0.5, color = "#828282") +
+        geom_point(aes(color = wave), size = 3) +
+        scale_color_manual(
+            values = c(
+                W0 = "#65ADC2",
+                W1 = "#233B43",
+                W2 = "#E84646",
+                W3 = "#9B59B6")) +
+        scale_linetype_manual(
+            values = c(
+                "R²" = "solid",
+                "AUROC" = "dashed",
+                "AUCPR" = "dotted")) +
+        scale_shape_manual(values = c("R²" = 16, "AUROC" = 17, "AUCPR" = 15)) +
+        scale_x_discrete(expand = expansion(mult = c(0.05, 0.20))) +
+        scale_y_continuous(
+            limits = c(0, 65),
+            breaks = seq(0, 60, by = 10),
+            labels = \(x) sprintf("%.2f", x),
+            expand = expansion(mult = c(0.02, 0.05))) +
+        coord_cartesian(clip = "off") +
+        labs(x = "Wave",
+             y = "",
+             linetype = "Metric",
+             shape = "Metric") +
+        theme_publish(base_size = 12) +
+        theme(
+            panel.grid.major.y = element_line(color = "grey90", linetype = "dashed", linewidth = 0.4),
+            axis.line = element_line(linewidth = 0.2),
+            plot.title = element_text(face = "bold", size = 14),
+            plot.subtitle = element_text(size = 11, color = "grey40"),
+            plot.margin = margin(10, 30, 10, 10),
+            legend.position = "bottom") +
+        guides(color = "none")
+
 p3 <-
-	filter(for_plot, subset == "females") %>%
-	ggplot(aes(x = wave, y = value * 100, group = 1, color = wave)) +
-		geom_line(size = 1.2, color = "#c7c7c7") +
-		geom_point(size = 3) +
-		scale_color_manual(
-			values = c(
-				W0 = "#65ADC2",
-				W1 = "#233B43",
-				W2 = "#E84646",
-				W3 = "#9B59B6")) +
-		facet_wrap(~predictor, scales = "free_y", ncol = 1) +
-		scale_x_discrete(
-			expand = expansion(mult = c(0.05, 0.20))) +
-		scale_y_continuous(
-			breaks = function(x) seq(min(x), max(x), length.out = 4),
-			labels = \(x) sprintf("%.2f", x),
-			expand = expansion(mult = c(0.08, 0.15))) +
-		coord_cartesian(clip = "off") +
-		labs(x = "", y = "") +
-		theme_publish(base_size = 12) +
-		theme(
-			panel.grid.major.y = element_line(
-				color = "grey90",
-				linetype = "dashed",
-				linewidth = 0.4),
-				axis.line = element_line(linewidth = 0.2),
-				plot.title = element_text(face = "bold", size = 14),
-				plot.subtitle = element_text(size = 11, color = "grey40"),
-				plot.margin = margin(10, 30, 10, 10),
-				legend.position = "none")
+    filter(for_plot, subset == "females") %>%
+    ggplot(aes(x = wave, y = value * 100, group = predictor, linetype = predictor, shape = predictor)) +
+        geom_line(size = 0.5, color = "#828282") +
+        geom_point(aes(color = wave), size = 3) +
+        scale_color_manual(
+            values = c(
+                W0 = "#65ADC2",
+                W1 = "#233B43",
+                W2 = "#E84646",
+                W3 = "#9B59B6")) +
+        scale_linetype_manual(
+            values = c(
+                "R²" = "solid",
+                "AUROC" = "dashed",
+                "AUCPR" = "dotted")) +
+        scale_shape_manual(values = c("R²" = 16, "AUROC" = 17, "AUCPR" = 15)) +
+        scale_x_discrete(expand = expansion(mult = c(0.05, 0.20))) +
+        scale_y_continuous(
+            limits = c(0, 65),
+            breaks = seq(0, 60, by = 10),
+            labels = \(x) sprintf("%.2f", x),
+            expand = expansion(mult = c(0.02, 0.05))) +
+        coord_cartesian(clip = "off") +
+        labs(x = "",
+             y = "",
+             linetype = "Metric",
+             shape = "Metric") +
+        theme_publish(base_size = 12) +
+        theme(
+            panel.grid.major.y = element_line(color = "grey90", linetype = "dashed", linewidth = 0.4),
+            axis.line = element_line(linewidth = 0.2),
+            plot.title = element_text(face = "bold", size = 14),
+            plot.subtitle = element_text(size = 11, color = "grey40"),
+            plot.margin = margin(10, 30, 10, 10),
+            legend.position = "bottom") +
+        guides(color = "none")
 
 final <- p1 + p2 + p3 + plot_annotation(tag_levels = 'A')
 
 # save panel A file
 ggsave(
-	"fig2.png",
-	final,
-	device = "png",
-	units = "cm",
-	width = 30,
-	height = 12,
-	dpi = 400,
-	bg = "white")
+    "fig2.png",
+    final,
+    device = "png",
+    units = "cm",
+    width = 30,
+    height = 12,
+    dpi = 400,
+    bg = "white")

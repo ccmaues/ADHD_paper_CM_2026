@@ -26,7 +26,7 @@ for_plot <-
 	cbind(select(database, IID, gender, w3_conversion), PRS = new_PRS$PRS) %>%
 	mutate(n.risk = ntile(PRS, 10)) %>%
 	inner_join(., data$PCA_all_samples, by = "IID") %>%
-	select(gender, n.risk, PC1, PC2, w3_conversion)
+	select(gender, n.risk, PC1, PC2, w3_conversion, PRS)
 
 # p1 <-
 	ggplot(for_plot, aes(PC1, PC2, shape = gender, color = w3_conversion)) +
@@ -38,3 +38,9 @@ for_plot <-
 			legend.position = "bottom",
 			legend.margin = margin(t = 0, r = 10, b = 0, l = 0),
 			panel.grid = element_line(linewidth = 0.2))
+
+
+ggplot(for_plot, aes(y = PRS, color = w3_conversion)) +
+geom_histogram() +
+coord_flip()
+

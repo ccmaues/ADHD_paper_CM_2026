@@ -391,7 +391,7 @@ print(
 # -------------------------------------------------------------------------
 # 18. Save final RDS
 # -------------------------------------------------------------------------
-saveRDS(cass_BHRC, output_file)
+#saveRDS(cass_BHRC, output_file)
 
 cat(
   "\nSaved final W0-W3 database to:\n",
