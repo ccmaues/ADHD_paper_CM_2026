@@ -1,184 +1,152 @@
-# Odds ratio per PRS strata on W0, W1 and W2 (all samples)
-pacman::p_load(dplyr, broom, ggplot2, envalysis, ggthemr, patchwork)
+# Violin plot PRS per diagnosis (W0, W1, W2) all samples
+pacman::p_load(dplyr, tidyr, ggthemr, envalysis, ggplot2, patchwork, ggpattern)
 
 data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
 
+# Samples & PCs
 database <-
-	data$proband_data %>%
-	mutate(across(c(W0, W1, W2, W3), ~ ifelse(.x == 2, 1, .x))) %>%
-	select(IID, gender, W0, W1, W2, W3, starts_with("age_"))
+	data$proband_data %>% 
+	inner_join(., data$PCA_all_samples, by = "IID") %>%
+	mutate(across(c(W0, W1, W2, W3), ~ case_when(
+		.x %in% c(1, 2) ~ "Case",
+		.x == 0 ~ "Control",
+		TRUE ~ NA_character_)))
 
-# PCA
-all_pcs <-
-  	data$PCA_all_samples %>%
-  	select(IID, PC1, PC2, PC3, PC4) %>%
-	inner_join(., select(data$proband_data, IID, PRS), by = "IID")
+females <-
+	filter(database, gender == "Female") %>%
+	select(!c(starts_with("PC"), "FID")) %>%
+	inner_join(., data$PCA_by_sex, by = "IID")
+	
+males <- 
+	filter(database, gender == "Male") %>%
+	select(!c(starts_with("PC"), "FID")) %>%
+	inner_join(., data$PCA_by_sex, by = "IID")
 
+# PRS adjustment
+# shapiro.test(all_pcs$PRS)
 new_PRS <-
-	all_pcs %>%
-	mutate(
-		PRS = residuals(glm(
-			PRS ~ PC1 + PC2 + PC3 + PC4,
-			family = "gaussian",
-			data = .))) %>%
-	select(IID, PRS)
+	residuals(glm(
+		PRS ~ PC1 + PC2 + PC3 + PC4,
+		family = "gaussian",
+		data = database))
 
-# Family history
-hist <-
-	data$family_history %>%
-	mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0)) %>%
-	select(IID, any_hist)
+# shapiro.test(pcs_females$PRS)
+new_PRS_fem <-
+	residuals(glm(
+		PRS ~ PC1 + PC2 + PC3 + PC4,
+		family = "gaussian",
+		data = females))
 
-# Working data
-wd <-
-	plyr::join_all(
-		list(database, new_PRS, hist),
-		by = "IID",
-		type = "inner") %>%
-	mutate(decile = ntile(PRS, 10)) %>%
-	select(!c(PRS, IID))
+# shapiro.test(pcs_males$PRS)
+new_PRS_man <-
+	residuals(glm(
+		PRS ~ PC1 + PC2 + PC3 + PC4,
+		family = "gaussian",
+		data = males))
 
-# Models
-models <-
-	list(
-		w0 = glm(W0 ~ factor(decile) + gender + any_hist + age_W0, family = binomial, data = wd),
-		w1 = glm(W1 ~ factor(decile) + gender + any_hist + age_W1, family = binomial, data = wd),
-		w2 = glm(W2 ~ factor(decile) + gender + any_hist + age_W2, family = binomial, data = wd),
-		w3 = glm(W3 ~ factor(decile) + gender + any_hist + age_W3, family = binomial, data = wd)) %>%
-	lapply(function(mod) {
-		tidy(mod, exponentiate = TRUE, conf.int = TRUE) %>%
-		filter(grepl("decile", term)) %>%
-		mutate(
-			decile = 2:10,
-			sig = p.value < 0.05) %>%
-		bind_rows(
-			tibble(
-				decile = 1,
-				estimate = 1,
-				conf.low = 1,
-				conf.high = 1,
-				p.value = NA,
-				sig = FALSE)) %>%
-		arrange(decile)})
+# Plotting object
+for_plot <-
+    data.frame(
+        W0 = database$W0,
+        W1 = database$W1,
+        W2 = database$W2,
+        W3 = database$W3,
+        PRS = new_PRS) %>%
+    pivot_longer(.,
+        cols = starts_with("W"),
+        names_to = "wave",
+        values_to = "status") %>%
+    mutate(
+        status = factor(status, levels = c("Case", "Control")),
+        wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
+        group = factor(
+            paste(wave, status),
+            levels = c(
+                "W0 Case", "W0 Control",
+                "W1 Case", "W1 Control",
+                "W2 Case", "W2 Control",
+                "W3 Case", "W3 Control")),
+        xpos = c(
+            0.86, 1.14,
+            1.41, 1.69,
+            1.96, 2.24,
+            2.51, 2.79)[match(
+            paste(wave, status),
+            c(
+                "W0 Case", "W0 Control",
+                "W1 Case", "W1 Control",
+                "W2 Case", "W2 Control",
+                "W3 Case", "W3 Control"))])
 
 ggthemr("fresh")
-# -----------------------
-# All dataset
-# -----------------------
-ylims <- c(
-	min(models$w0$conf.low,
-		models$w1$conf.low,
-		models$w2$conf.low,
-		models$w3$conf.low,
-		na.rm = TRUE),
-	max(models$w0$conf.high,
-		models$w1$conf.high,
-		models$w2$conf.high,
-		models$w3$conf.high,
-		na.rm = TRUE))
-
-p1 <-
-	ggplot(models$w0, aes(x = decile, y = estimate)) +
-		geom_hline(yintercept = 1, linetype = "dashed", color = "grey", linewidth = 0.3) +
-		geom_line(color = "#4e4e4e") +
-		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#65acc2a1", width = 0, linewidth = 0.3) +
-		geom_point(size = 2, color = "#65ADC2") +
-		geom_point(
-			data = filter(models$w0, sig),
-			shape = 21,
-			size = 3.2,
-			stroke = 0.8,
-			fill = NA,
-			color = "#4e4e4e") +
-		coord_cartesian(ylim = ylims) +
-		scale_y_continuous(n.breaks = 7) +
-		scale_x_continuous(
-			breaks = 1:10,
-			labels = c(
-				"1st", "2nd", "3rd", "4th", "5th",
-				"6th", "7th", "8th", "9th", "10th")) +
-		labs(x = "", y = "") +
-		theme_publish(base_size = 10)
-
-p2 <-
-	ggplot(models$w1, aes(x = decile, y = estimate)) +
-		geom_hline(yintercept = 1, linetype = "dashed", color = "grey", linewidth = 0.3) +
-		geom_line(color = "#4e4e4e") +
-		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#233b4394", width = 0, linewidth = 0.3) +
-		geom_point(size = 2, color = "#233B43") +
-		geom_point(
-			data = filter(models$w1, sig),
-			shape = 21,
-			size = 3.2,
-			stroke = 0.8,
-			fill = NA,
-			color = "#4e4e4e") +
-		coord_cartesian(ylim = ylims) +
-		scale_y_continuous(n.breaks = 7) +
-		scale_x_continuous(
-			breaks = 1:10,
-			labels = c(
-				"1st", "2nd", "3rd", "4th", "5th",
-				"6th", "7th", "8th", "9th", "10th")) +
-		labs(x = "", y = "Odds Ratio") +
-		theme_publish(base_size = 10)
-
-p3 <-
-	ggplot(models$w2, aes(x = decile, y = estimate)) +
-		geom_hline(yintercept = 1, linetype = "dashed", color = "grey", linewidth = 0.3) +
-		geom_line(color = "#4e4e4e") +
-		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#e84646a2", width = 0, linewidth = 0.3) +
-		geom_point(size = 2, color = "#E84646") +
-		geom_point(
-			data = filter(models$w2, sig),
-			shape = 21,
-			size = 3.2,
-			stroke = 0.8,
-			fill = NA,
-			color = "#4e4e4e") +
-		coord_cartesian(ylim = ylims) +
-		scale_y_continuous(n.breaks = 7) +
-		scale_x_continuous(
-			breaks = 1:10,
-			labels = c(
-				"1st", "2nd", "3rd", "4th", "5th",
-				"6th", "7th", "8th", "9th", "10th")) +
-		labs(x = "", y = "") +
-		theme_publish(base_size = 10)
-
-p4 <-
-	ggplot(models$w3, aes(x = decile, y = estimate)) +
-		geom_hline(yintercept = 1, linetype = "dashed", color = "grey", linewidth = 0.3) +
-		geom_line(color = "#4e4e4e") +
-		geom_errorbar(aes(ymin = conf.low, ymax = conf.high), color = "#9b59b694", width = 0, linewidth = 0.3) +
-		geom_point(size = 2, color = "#9B59B6") +
-		geom_point(
-			data = filter(models$w3, sig),
-			shape = 21,
-			size = 3.2,
-			stroke = 0.8,
-			fill = NA,
-			color = "#4e4e4e") +
-		coord_cartesian(ylim = ylims) +
-		scale_y_continuous(n.breaks = 7) +
-		scale_x_continuous(
-			breaks = 1:10,
-			labels = c(
-				"1st", "2nd", "3rd", "4th", "5th",
-				"6th", "7th", "8th", "9th", "10th")) +
-		labs(x = "PRS risk strata", y = "") +
-		theme_publish(base_size = 10)
+# I wanted to make each for wave (the same color scheme i was using)
 
 final <-
-	p1 / p2 / p3 / p4 +
-	plot_annotation(tag_levels = "A") &
-	theme(aspect.ratio = 0.4)
+    ggplot(for_plot, aes(x = xpos, y = PRS, group = group, fill = wave, pattern = status)) +
+        geom_violin_pattern(
+            width = 0.24,
+            alpha = 0.25,
+            color = NA,
+            trim = FALSE,
+            pattern_angle = 45,
+            pattern_density = 0.08,
+            pattern_spacing = 0.03,
+            pattern_alpha = 0.25,
+            pattern_colour = "#4e4e4e") +
+        geom_boxplot(
+            width = 0.06,
+            fill = NA,
+            color = "#4e4e4e",
+            linewidth = 0.4,
+            outlier.shape = 21,
+            outlier.fill = "#ff4d4d66",
+            outlier.colour = "#ff000099",
+            outlier.stroke = 0.4,
+            outlier.size = 1) +
+        scale_pattern_manual(
+            values = c(
+                Case = "stripe",
+                Control = "none")) +
+        scale_fill_manual(
+            values = c(
+                W0 = "#65ADC2",
+                W1 = "#233B43",
+                W2 = "#E84646",
+                W3 = "#9B59B6")) +
+        scale_x_continuous(
+            breaks = c(1.00, 1.55, 2.10, 2.65),
+            labels = c("W0", "W1", "W2", "W3"),
+            expand = expansion(mult = c(0.05, 0.05))) +
+        labs(
+            x = "",
+            y = "PGS",
+            fill = "",
+            pattern = "") +
+        theme_publish(base_size = 14) +
+        theme(
+            panel.grid.major.y = element_line(
+                color = "#cfcfcf",
+                linetype = "dashed",
+                linewidth = 0.2),
+            axis.text.x = element_text(angle = 0, hjust = 0.5),
+            legend.position = "top") +
+    guides(
+        fill = guide_legend(
+            order = 1,
+            override.aes = list(
+                pattern = "none")),
+        pattern = guide_legend(
+            order = 2,
+            override.aes = list(
+                fill = "grey80",
+                colour = NA)))
 
 ggsave(
-	"fig3_panelC.png",
-	device = "png",
-	units = "cm",
-	width = 10,
-	height = 17,
-	dpi = 400,
-	bg = "white")
+    "Fig3_panelC.png",
+    final,
+    device = "png",
+    units = "cm",
+    width = 13,
+    height = 10,
+    dpi = 400,
+    bg = "white")
