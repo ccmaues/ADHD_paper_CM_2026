@@ -391,13 +391,7 @@ for_plot <-
 dodge <- position_dodge(width = 0.7)
 
 final <-
-    ggplot(
-        for_plot,
-        aes(
-            y = OR,
-            x = comparison,
-            color = wave,
-            group = wave)) +
+    ggplot(for_plot, aes(y = OR, x = comparison, color = wave, group = wave)) +
     geom_hline(
         yintercept = 1,
         linetype = "dashed",
@@ -405,20 +399,14 @@ final <-
         linewidth = 0.2,
         alpha = 0.5) +
     geom_errorbar(
-        aes(
-            ymin = CI_low,
-            ymax = CI_high),
+        aes(ymin = CI_low, ymax = CI_high),
         position = dodge,
         width = 0.3,
         linewidth = 0.5,
         alpha = 0.6) +
-    geom_point(
-        position = dodge,
-        size = 2) +
+    geom_point(position = dodge, size = 2) +
     geom_text(
-        aes(
-            y = star_y,
-            label = signif),
+        aes(y = star_y, label = signif),
         position = dodge,
         angle = 90,
         vjust = 0.8,
@@ -430,10 +418,9 @@ final <-
             "90th vs. 10th" = "90th vs.\n10th",
             "Else vs. 10th" = "Else vs.\n10th",
             "90th vs. Else" = "90th vs.\nElse")) +
-    labs(
-        color = "",
-        x = "",
-        y = "Odds ratio") +
+    labs(color = "",
+         x = "",
+         y = "Odds ratio") +
     scale_color_manual(
         values = c(
             W0 = "#65ADC2",
@@ -441,14 +428,20 @@ final <-
             W2 = "#E84646",
             W3 = "#9B59B6")) +
     theme_publish(base_size = 10) +
-    theme(legend.position = "top") +
     facet_wrap(
-        ~ strata,
-        labeller = as_labeller(
-            c(
-                "all" = "A",
-                "males" = "B",
-                "females" = "C")))
+        vars(strata),
+        nrow = 1,
+        labeller = as_labeller(c(
+            all = "All samples (N=1 463)",
+            males = "Males (N=789)",
+            females = "Females (N=674)"))) +
+    theme(
+        axis.line = element_line(linewidth = 0.2),
+        strip.background = element_rect(fill = "grey80", color = NA),
+        strip.text = element_text(size = 10),
+        plot.margin = margin(10, 30, 10, 10),
+        legend.position = "bottom") +
+    guides(color = "none")
 
 ggsave(
     "Figure_4.png",

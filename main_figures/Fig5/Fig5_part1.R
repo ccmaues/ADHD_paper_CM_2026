@@ -24,11 +24,10 @@ shapiro.test(all_pcs$PRS)
 
 new_PRS <-
 	all_pcs %>%
-	mutate(
-		PRS = residuals(glm(
-			PRS ~ PC1 + PC2 + PC3 + PC4,
-			family = "gaussian",
-			data = .))) %>%
+	mutate(PRS = residuals(glm(
+		   PRS ~ PC1 + PC2 + PC3 + PC4,
+		   family = "gaussian",
+		   data = .))) %>%
 	select(IID, PRS)
 
 database <-
@@ -38,16 +37,14 @@ database <-
 	mutate(risk = ntile(PRS, 5)) %>%
 	inner_join(hist, by = "IID")
 
-
 shapiro.test(females_pcs$PRS)
 
 new_PRS_fem <-
 	females_pcs %>%
-	mutate(
-		PRS = residuals(glm(
-			PRS ~ PC1 + PC2 + PC3 + PC4,
-			family = "gaussian",
-			data = .))) %>%
+	mutate(PRS = residuals(glm(
+		   PRS ~ PC1 + PC2 + PC3 + PC4,
+		   family = "gaussian",
+		   data = .))) %>%
 	select(IID, PRS)
 
 females <-
@@ -61,11 +58,10 @@ shapiro.test(males_pcs$PRS)
 
 new_PRS_man <-
 	males_pcs %>%
-	mutate(
-		PRS = residuals(glm(
-			PRS ~ PC1 + PC2 + PC3 + PC4,
-			family = "gaussian",
-			data = .))) %>%
+	mutate(PRS = residuals(glm(
+		   PRS ~ PC1 + PC2 + PC3 + PC4,
+		   family = "gaussian",
+		   data = .))) %>%
 	select(IID, PRS)
 
 males <-
@@ -83,9 +79,8 @@ calc_prev <- function(data, n, column_name, wave) {
   p <-
     as.data.frame(cbind(1:n, table(df$quantile_n, df[[wave]]))) %>%
     rename("ntile" = 1, "Control" = 2, "Case" = 3) %>%
-    mutate(
-      prev = Case / (Control + Case),
-      ntile = factor(ntile)) %>%
+    mutate(prev = Case / (Control + Case),
+      	   ntile = factor(ntile)) %>%
     select(-Control, -Case)
   return(p)}
 
@@ -141,40 +136,34 @@ for_plot_male <-
 database_long <-
   select(database, W0, W1, W2, W3, PRS) %>%
   mutate(risk = ntile(PRS, 5)) %>%
-	pivot_longer(
-		cols = starts_with("W"),
-		names_to = "wave",
-		values_to = "diagnosis") %>%
-  mutate(
-		wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
-		diagnosis = factor(diagnosis, levels = c(0, 1)),
-		risk = factor(risk, levels = c(1, 2, 3, 4, 5)))
+  pivot_longer(cols = starts_with("W"),
+			   names_to = "wave",
+			   values_to = "diagnosis") %>%
+  mutate(wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
+		 diagnosis = factor(diagnosis, levels = c(0, 1)),
+		 risk = factor(risk, levels = c(1, 2, 3, 4, 5)))
 
 females_long <-
   select(database, gender, W0, W1, W2, W3, PRS) %>%
   filter(gender == "Female") %>%
   mutate(risk = ntile(PRS, 5)) %>%
-	pivot_longer(
-		cols = starts_with("W"),
-		names_to = "wave",
-		values_to = "diagnosis") %>%
-  mutate(
-		wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
-		diagnosis = factor(diagnosis, levels = c(0, 1)),
-		risk = factor(risk, levels = c(1, 2, 3, 4, 5)))
+  pivot_longer(cols = starts_with("W"),
+			   names_to = "wave",
+			   values_to = "diagnosis") %>%
+  mutate(wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
+		 diagnosis = factor(diagnosis, levels = c(0, 1)),
+		 risk = factor(risk, levels = c(1, 2, 3, 4, 5)))
 
 males_long <-
   select(database, gender, W0, W1, W2, W3, PRS) %>%
   filter(gender == "Male") %>%
   mutate(risk = ntile(PRS, 5)) %>%
-	pivot_longer(
-		cols = starts_with("W"),
-		names_to = "wave",
-		values_to = "diagnosis") %>%
-  mutate(
-		wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
-		diagnosis = factor(diagnosis, levels = c(0, 1)),
-		risk = factor(risk, levels = c(1, 2, 3, 4, 5)))
+  pivot_longer(cols = starts_with("W"),
+			   names_to = "wave",
+			   values_to = "diagnosis") %>%
+  mutate(wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
+		 diagnosis = factor(diagnosis, levels = c(0, 1)),
+		 risk = factor(risk, levels = c(1, 2, 3, 4, 5)))
 
 new_x_axis <- c("1st", "2nd", "3rd", "4th", "5th")
 
@@ -193,16 +182,16 @@ p1 <-
 				W2 = "#E84646",
 				W3 = "#9B59B6")) +
 		theme_publish(base_size = 12) +
-		labs(
-			y = "Prevalence",
-			x = "") +
-    theme(
-      legend.position = "none",
-      axis.title.x = element_blank(),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.line.x = element_blank(),
-	  panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.3))
+		labs(y = "Prevalence", x = "") +
+    	theme(legend.position = "none",
+     	  	  axis.title.x = element_blank(),
+      	  	  axis.text.x = element_blank(),
+      	  	  axis.ticks.x = element_blank(),
+      	  	  axis.line.x = element_blank(),
+	  	  	  panel.grid.major.y = element_line(
+				linetype = "dashed",
+				color = "#c1c1c1",
+				size = 0.3))
 
 p2 <-
 	ggplot(for_plot_male, aes(ntile, prevalence * 100, color = wave, group = wave)) +
@@ -218,13 +207,15 @@ p2 <-
 				W3 = "#9B59B6")) +
 		theme_publish(base_size = 12) +
 		labs(y = "", x = "", color = "") +
-    theme(
-      legend.position = "top",
-      axis.title.x = element_blank(),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.line.x = element_blank(),
-	  panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.3))
+		theme(legend.position = "top",
+			  axis.title.x = element_blank(),
+			  axis.text.x = element_blank(),
+			  axis.ticks.x = element_blank(),
+			  axis.line.x = element_blank(),
+			  panel.grid.major.y = element_line(
+				linetype = "dashed",
+				color = "#c1c1c1",
+				size = 0.3))
 
 p3 <-
 	ggplot(for_plot_female, aes(ntile, prevalence * 100, color = wave, group = wave)) +
@@ -239,57 +230,60 @@ p3 <-
 				W2 = "#E84646",
 				W3 = "#9B59B6")) +
 		theme_publish(base_size = 12) +
-		labs(
-			y = "",
-			x = "") +
-    theme(
-      legend.position = "none",
-      axis.title.x = element_blank(),
-      axis.text.x = element_blank(),
-      axis.ticks.x = element_blank(),
-      axis.line.x = element_blank(),
-	  panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.3))
+		labs(y = "", x = "") +
+		theme(legend.position = "none",
+			  axis.title.x = element_blank(),
+			  axis.text.x = element_blank(),
+			  axis.ticks.x = element_blank(),
+			  axis.line.x = element_blank(),
+			  panel.grid.major.y = element_line(
+				linetype = "dashed",
+				color = "#c1c1c1",
+				size = 0.3))
 
 # Case sample size per risk and wave
-wave_cols <- c(Control = "#D9D9D9", W0 = "#65ADC2", W1 = "#233B43", W2 = "#E84646", W3 = "#9B59B6")
+wave_cols <- c(Control = "#ffffff", W0 = "#65ADC2", W1 = "#233B43", W2 = "#E84646", W3 = "#9B59B6")
 
 make_n_plot <- function(data, show_y = TRUE) {
-  wave_offsets <- c(
-    W0 = -0.27,
-    W1 = -0.09,
-    W2 =  0.09,
-    W3 =  0.27)
+  wave_offsets <- c(W0 = -0.27, W1 = -0.09, W2 = 0.09, W3 = 0.27)
 
   n_df <-
     data %>%
     filter(!is.na(diagnosis)) %>%
-    mutate(
-      risk = factor(risk, levels = c(1, 2, 3, 4, 5)),
-      wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
-      diagnosis = factor(diagnosis, levels = c(0, 1), labels = c("Control", "Case"))) %>%
+    mutate(risk = factor(risk, levels = c(1, 2, 3, 4, 5)),
+      	   wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
+      	   diagnosis = factor(diagnosis, levels = c(0, 1), labels = c("Control", "Case"))) %>%
     count(risk, wave, diagnosis, name = "n") %>%
-    mutate(
-      x = as.numeric(risk) + unname(wave_offsets[as.character(wave)]),
-      fill_group = ifelse(diagnosis == "Control", "Control", as.character(wave)),
-      fill_group = factor(fill_group, levels = c("Control", "W0", "W1", "W2", "W3"))) %>%
+    group_by(risk, wave) %>%
+    mutate(pct = 100 * n / sum(n)) %>%
+    ungroup() %>%
+    mutate(x = as.numeric(risk) + unname(wave_offsets[as.character(wave)]),
+      	   fill_group = ifelse(diagnosis == "Control", "Control", as.character(wave)),
+      	   fill_group = factor(fill_group, levels = c("Control", "W0", "W1", "W2", "W3"))) %>%
     arrange(risk, wave, diagnosis)
   
-  ggplot(n_df, aes(x = x, y = n, fill = fill_group)) +
-    geom_col(width = 0.16) +
-    scale_x_continuous(
-      breaks = 1:5,
-      labels = new_x_axis,
-      expand = expansion(mult = c(0.03, 0.03))) +
-    scale_fill_manual(values = wave_cols) +
-    labs(
-      x = "",
-      y = ifelse(show_y, "N", ""),
-      fill = "") +
-    theme_publish(base_size = 10) +
-    theme(
-      legend.position = "none",
-      panel.grid.major.x = element_blank(),
-      panel.grid.minor = element_blank())}
+  ggplot(n_df, aes(x = x, y = pct, fill = fill_group, color = fill_group)) +
+    geom_col(width = 0.13, linewidth = 0.5) +
+    scale_x_continuous(breaks = 1:5,
+      				   labels = new_x_axis,
+      				   expand = expansion(mult = c(0.03, 0.03))) +
+    scale_y_continuous(breaks = seq(0, 40, by = 10),
+      				   limits = c(0, 40),
+      				   labels = \(x) paste0(x, "%")) +
+    scale_fill_manual(values = scales::alpha(wave_cols, alpha = 0.7)) +
+    scale_color_manual(values = wave_cols, guide = "none") +
+    labs(x = "", y = ifelse(show_y, "Cases %", ""), fill = "") +
+    theme_publish(base_size = 12) +
+    theme(legend.position = "none",
+		  axis.line.x = element_blank(),
+		  axis.text.x = element_blank(),
+		  axis.ticks.x = element_blank(),
+      	  panel.grid.major.x = element_blank(),
+          panel.grid.minor = element_blank(),
+		  panel.grid.major.y = element_line(
+				linetype = "dashed",
+				color = "#c1c1c1",
+				size = 0.2))}
 
 n1 <- make_n_plot(database_long, show_y = TRUE)
 n2 <- make_n_plot(males_long, show_y = FALSE)
@@ -298,27 +292,36 @@ n3 <- make_n_plot(females_long, show_y = FALSE)
 ## Delta plots
 p6 <-
 	ggplot(all_plot_delta, aes(ntile, delta * 100)) +
-		geom_col(fill = "#129990") +
+		geom_col(fill = "#129990", alpha = 0.6, linewidth = 0.8) +
 		scale_x_discrete(labels = new_x_axis) +
 		scale_y_continuous(n.breaks = 7, limits = c(0, 20)) +
-    labs(x = "", y = "\u0394 Prevalence") +
-    theme_publish(base_size = 12)
+    	labs(x = "", y = "\u0394 Prevalence") +
+    	theme_publish(base_size = 12) +
+		theme(axis.line.x = element_blank(),
+			  axis.text.x = element_blank(),
+			  axis.ticks.x = element_blank())
 
 p7 <-
 	ggplot(male_plot_delta, aes(ntile, delta * 100)) +
-		geom_col(fill = "#129990") +
+		geom_col(fill = "#129990", alpha = 0.6, linewidth = 0.8) +
 		scale_x_discrete(labels = new_x_axis) +
 		scale_y_continuous(n.breaks = 7, limits = c(0, 20)) +
-    labs(x = "PRS quintile", y = "") +
-    theme_publish(base_size = 12)
+    	labs(x = "", y = "") +
+   		theme_publish(base_size = 12) +
+		theme(axis.line.x = element_blank(),
+			  axis.text.x = element_blank(),
+			  axis.ticks.x = element_blank())
 
 p8 <-
 	ggplot(female_plot_delta, aes(ntile, delta * 100)) +
-		geom_col(fill = "#129990") +
+		geom_col(fill = "#129990", alpha = 0.6, linewidth = 0.8) +
 		scale_x_discrete(labels = new_x_axis) +
 		scale_y_continuous(n.breaks = 7, limits = c(0, 20)) +
-    labs(y = "", x = "") +
-    theme_publish(base_size = 12)
+    	labs(y = "", x = "") +
+    	theme_publish(base_size = 12) +
+		theme(axis.line.x = element_blank(),
+			  axis.text.x = element_blank(),
+			  axis.ticks.x = element_blank())
 
 final <-
     ((p1 / n1 / p6 + plot_layout(heights = c(1, 0.45, 0.5))) |

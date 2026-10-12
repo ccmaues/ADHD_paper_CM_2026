@@ -95,12 +95,8 @@ ggthemr("fresh")
 # -----------------------
 # All dataset
 # -----------------------
-ylims <- c(
-    0,
-    max(plot_data$conf.high, na.rm = TRUE))
-
+ylims <- c(0, max(plot_data$conf.high, na.rm = TRUE))
 max_cases <- max(case_counts$n_cases, na.rm = TRUE)
-
 scale_factor <- (ylims[2] * 0.75) / max_cases
 
 p_facet <-
@@ -111,56 +107,21 @@ p_facet <-
             inherit.aes = FALSE,
             width = 0.72,
             alpha = 0.15) +
-        geom_hline(
-            yintercept = 1,
-            linetype = "dashed",
-            color = "grey",
-            linewidth = 0.3) +
-        geom_line(
-            aes(group = wave),
-            color = "#4e4e4e",
-            linewidth = 0.5) +
-        geom_errorbar(
-            aes(ymin = conf.low, ymax = conf.high),
-            width = 0,
-            linewidth = 0.3,
-            alpha = 0.6) +
+        geom_hline(yintercept = 1, linetype = "dashed", color = "grey", linewidth = 0.3) +
+        geom_line(aes(group = wave), color = "#4e4e4e", linewidth = 0.5) +
+        geom_errorbar(aes(ymin = conf.low, ymax = conf.high), width = 0, linewidth = 0.3, alpha = 0.6) +
         geom_point(size = 2) +
-        geom_point(
-            data = filter(plot_data, sig),
-            shape = 21,
-            size = 3.2,
-            stroke = 0.8,
-            fill = NA,
-            color = "#4e4e4e") +
+        geom_point(data = filter(plot_data, sig), shape = 21, size = 3.2, stroke = 0.8, fill = NA, color = "#4e4e4e") +
         coord_cartesian(ylim = ylims) +
-        scale_y_continuous(
-            n.breaks = 7,
-            sec.axis = sec_axis(
-                ~ . / scale_factor,
-                name = "N cases")) +
+        scale_y_continuous(n.breaks = 7, sec.axis = sec_axis(~ . / scale_factor, name = "N cases")) +
         scale_x_continuous(
             breaks = 1:10,
-            labels = c(
-                "1st", "2nd", "3rd", "4th", "5th",
-                "6th", "7th", "8th", "9th", "10th")) +
-        scale_color_manual(
-            values = c(
-                W0 = "#65ADC2",
-                W1 = "#233B43",
-                W2 = "#E84646",
-                W3 = "#9B59B6")) +
-        scale_fill_manual(
-            values = c(
-                W0 = "#65ADC2",
-                W1 = "#233B43",
-                W2 = "#E84646",
-                W3 = "#9B59B6")) +
+            labels = c("1st", "2nd", "3rd", "4th", "5th",
+                       "6th", "7th", "8th", "9th", "10th")) +
+        scale_color_manual(values = c(W0 = "#65ADC2", W1 = "#233B43", W2 = "#E84646", W3 = "#9B59B6")) +
+        scale_fill_manual(values = c(W0 = "#65ADC2", W1 = "#233B43", W2 = "#E84646", W3 = "#9B59B6")) +
         facet_grid(wave ~ .) +
-        labs(
-            x = "PGS risk strata",
-            y = "Odds Ratio",
-            color = "Wave") +
+        labs(x = "PGS risk strata", y = "Odds Ratio", color = "Wave") +
         theme_publish(base_size = 10) +
         theme(
             strip.background = element_blank(),
