@@ -5,7 +5,7 @@ pacman::p_load(lubridate, dplyr, data.table, tidyr)
 # -------------------------------------------------------------------------
 external_dir <- "C:/Users/cassi/Documents/work/0_external_files"
 prs_file <- "C:/Users/cassi/Documents/work/PRS_database_imputed/PRSCS_ADHD_2023_Score.profile"
-output_file <- "C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds"
+output_file <- "C:/Users/cassi/Documents/work/cass_20102026_ARTICLE.rds"
 
 # -------------------------------------------------------------------------
 # 3. ID dictionary / mirror
@@ -134,11 +134,10 @@ longitudinal_wide <-
       p_height,
       dcanyhk),
     names_glue = "{.value}_{wave}") %>%
-  rename(
-      W0 = dcanyhk_W0,
-      W1 = dcanyhk_W1,
-      W2 = dcanyhk_W2,
-      W3 = dcanyhk_W3) %>%
+  rename(W0 = dcanyhk_W0,
+         W1 = dcanyhk_W1,
+         W2 = dcanyhk_W2,
+         W3 = dcanyhk_W3) %>%
   select(-p_psico_date1_W0) %>%
   left_join(dob_info, by = "IID") %>%
   select(-birth_date, -ext_genid)
@@ -149,20 +148,17 @@ str(longitudinal_wide)
 # -------------------------------------------------------------------------
 
 qc_vars <- intersect(
-  c("p_height1", "p_height2", "dcadhdc", "dcadhdi", "dcadhdh", "dcadhdo"),
+  c("p_height1", "p_height2", "dcadhdc", "dcadhdi", "dcadhdh", "dcadhdo", "wave"),
   names(bhrc_raw))
 
 if (length(qc_vars) > 0) {
-  w3_qc <-
+  adhd_codes <-
     bhrc_raw %>%
-    filter(wave == "W3") %>%
-    select(
-      ext_genid,
-      all_of(qc_vars))
+    select(IID, all_of(qc_vars))
 } else {
-  w3_qc <- NULL}
+  adhd_codes <- NULL}
 
-str(w3_qc)
+str(adhd_codes)
 # -------------------------------------------------------------------------
 # 9. PRS
 # -------------------------------------------------------------------------
@@ -178,7 +174,7 @@ str(prs)
 # 10. Build raw analysis database
 # -------------------------------------------------------------------------
 data <-
-  reduce(
+  purrr::reduce(
     list(demographics, longitudinal_wide, prs),
     inner_join, by = "IID") %>%
   mutate(
@@ -354,7 +350,7 @@ proband_data <-
       select(-starts_with("W"), -starts_with("age_W")),
     imputed_pheno,
     new_age) %>%
-  reduce(inner_join, by = "IID") %>%
+  purrr::reduce(inner_join, by = "IID") %>%
   select(IID, site, gender, PRS, starts_with("age_"), starts_with("W")) %>%
   mutate(W3 = ifelse(W3 == 2, 1, 0))
 
@@ -367,7 +363,7 @@ cass_BHRC <-
       filter(IID %in% all_pca$IID),
     PCA_all_samples = all_pca,
     PCA_by_sex = rbind(fem_pca, man_pca),
-    W3_QC = w3_qc)
+    adhd_codes = adhd_codes)
 
 # -------------------------------------------------------------------------
 # 17. Basic checks
@@ -391,7 +387,7 @@ print(
 # -------------------------------------------------------------------------
 # 18. Save final RDS
 # -------------------------------------------------------------------------
-#saveRDS(cass_BHRC, output_file)
+saveRDS(cass_BHRC, output_file)
 
 cat(
   "\nSaved final W0-W3 database to:\n",
