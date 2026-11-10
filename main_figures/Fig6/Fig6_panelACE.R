@@ -1,9 +1,9 @@
 pacman::p_load(dplyr, ggplot2, envalysis, tidyr, patchwork, ggsurvfit, survminer, survival)
 
-source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
+source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 hist <-
-  readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")$family_history %>%
+  readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")$family_history %>%
   mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
 
 #---------------------------------

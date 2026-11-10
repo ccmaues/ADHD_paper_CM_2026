@@ -3,9 +3,9 @@ pacman::p_load(lubridate, dplyr, data.table, tidyr)
 # -------------------------------------------------------------------------
 # 2. Paths
 # -------------------------------------------------------------------------
-external_dir <- "C:/Users/cassi/Documents/work/0_external_files"
-prs_file <- "C:/Users/cassi/Documents/work/PRS_database_imputed/PRSCS_ADHD_2023_Score.profile"
-output_file <- "C:/Users/cassi/Documents/work/cass_20102026_ARTICLE.rds"
+external_dir <- "C:/Users/Cass/Documents/work/0_external_files"
+prs_file <- "C:/Users/Cass/Documents/work/PRS_database_imputed/PRSCS_ADHD_2023_Score.profile"
+output_file <- "C:/Users/Cass/Documents/work/cass_20102026_ARTICLE.rds"
 
 # -------------------------------------------------------------------------
 # 3. ID dictionary / mirror
@@ -304,13 +304,13 @@ str(pca_files_IDs_man)
 # -------------------------------------------------------------------------
 # 14. PCA eigenvectors
 # -------------------------------------------------------------------------
-all_pca <- fread("C:/Users/cassi/Documents/work/0_external_files/w3_pca/cass_1506_W3_PCA.eigenvec")
+all_pca <- fread("C:/Users/Cass/Documents/work/0_external_files/w3_pca/cass_1506_W3_PCA.eigenvec")
 colnames(all_pca) <- c("FID", "IID", paste0("PC", 1:10))
 
-fem_pca <- fread("C:/Users/cassi/Documents/work/0_external_files/w3_pca/cass_697_W3_PCA.eigenvec")
+fem_pca <- fread("C:/Users/Cass/Documents/work/0_external_files/w3_pca/cass_697_W3_PCA.eigenvec")
 colnames(fem_pca) <- c("FID", "IID", paste0("PC", 1:10))
 
-man_pca <- fread("C:/Users/cassi/Documents/work/0_external_files/w3_pca/cass_806_W3_PCA.eigenvec")
+man_pca <- fread("C:/Users/Cass/Documents/work/0_external_files/w3_pca/cass_806_W3_PCA.eigenvec")
 colnames(man_pca) <- c("FID", "IID", paste0("PC", 1:10))
 
 # -------------------------------------------------------------------------

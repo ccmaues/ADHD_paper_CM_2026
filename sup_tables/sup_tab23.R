@@ -7,7 +7,7 @@ pacman::p_load(
 	gtsummary,
 	flextable)
 
-source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
+source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 # --------------------------------------------------
 # Working data

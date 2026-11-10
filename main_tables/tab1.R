@@ -1,7 +1,7 @@
 # descriptive table
 pacman::p_load(dplyr, officer, tibble, flextable)
 
-data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
 
 database <-
 	data$proband_data %>%

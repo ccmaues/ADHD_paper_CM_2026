@@ -1,7 +1,7 @@
 # Violin plot PRS per diagnosis (W0, W1, W2) all samples
 pacman::p_load(dplyr, tidyr, ggthemr, envalysis, ggplot2, patchwork, ggpattern)
 
-data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
 
 # Samples & PCs
 database <-

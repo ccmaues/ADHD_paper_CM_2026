@@ -1,6 +1,6 @@
 pacman::p_load(dplyr, data.table, ggthemr, ggplot2, envalysis, broom, survival, tidyr)
 # make HZ col plot  for Overall HZ, 90, 10, 90  w/ family, 10 w/ family, 90 n/family 10 n/family
-source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
+source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 wd <-
 	inner_join(survival_data, hist, by = "IID") %>%

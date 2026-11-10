@@ -8,7 +8,7 @@ pacman::p_load(
 
 # Article dataset
 data <- readRDS(
-	"C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
+	"C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
 
 # --------------------------------------------------
 # Family history

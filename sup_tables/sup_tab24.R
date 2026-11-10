@@ -8,7 +8,7 @@ pacman::p_load(
 	flextable)
 
 source(
-	"C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
+	"C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 # --------------------------------------------------
 # Working data

@@ -1,7 +1,7 @@
 # Odds ratio for each PRS decile per wave
 pacman::p_load(dplyr, broom, flextable, gtsummary)
 
-data <- readRDS("C:/Users/cassi/Documents/work/cass_07092026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
 
 # Proband data
 database <-

@@ -1,7 +1,7 @@
 pacman::p_load(dplyr, data.table, ggthemr, ggplot2, envalysis, broom, survival, tidyr)
 # make HZ col plot with stratification for high risk strata 90th>=
 
-source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
+source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 wd <-
 	inner_join(survival_data, hist, by = "IID") %>%

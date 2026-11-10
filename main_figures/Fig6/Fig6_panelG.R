@@ -1,6 +1,6 @@
 pacman::p_load(dplyr, data.table, ggthemr, ggplot2, envalysis, broom, survival, tidyr)
 # make HZ col plot with stratification by gender
-source("C:/Users/cassi/Documents/work/ADHD_paper/other_files/survival_object.R")
+source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 females <-
 	inner_join(survival_females, hist, by = "IID") %>%
