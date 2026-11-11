@@ -1,16 +1,26 @@
-pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, DescTools)
+pacman::p_load(
+	dplyr, data.table, ggplot2, ggthemr,
+	envalysis, tidyr, DescTools, patchwork)
 
-# Explained variance of diagnosis
 data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
 
 database <-
 	data$proband_data %>%
 	mutate(across(c(W0, W1, W2, W3), ~ ifelse(.x == 2, 1, .x)))
 
-# PCA
+# PCA correction of PRS
+pc_terms <- c("PC1", "PC2", "PC3", "PC4")
+
 all_pcs <-
 	data$PCA_all_samples %>%
-	inner_join(., select(database, IID, PRS, gender, W0, W1, W2, W3), by = "IID")
+	inner_join(
+		select(
+			database,
+			IID, PRS, gender,
+			age_W0, age_W1, age_W2, age_W3,
+			W0, W1, W2, W3),
+		by = "IID") %>%
+	filter(if_all(all_of(c("PRS", pc_terms)), ~ !is.na(.x)))
 
 all_pcs$PRS_adj <-
 	residuals(glm(
@@ -18,154 +28,172 @@ all_pcs$PRS_adj <-
 		family = "gaussian",
 		data = all_pcs))
 
-r2_ref_w3 <-
-	PseudoR2(
-		glm(W3 ~ PRS_adj, family = "binomial", data = all_pcs),
-		which = "Nagelkerke")
+all <- all_pcs
 
-all <-
-	inner_join(
-		select(all_pcs, IID, PC1, PC2, PC3, PC4),
-		select(
-			database,
-			IID, PRS, gender,
-			age_W0, age_W1, age_W2, age_W3,
-			W0, W1, W2, W3),
-		by = "IID")
+# PGS is retained in every model, including the fully adjusted model
+calc_r2 <- function(database, wave, include_sex = TRUE) {
+	age <- paste0("age_", wave)
+	required <- c(wave, age, "PRS", "PRS_adj", pc_terms)
 
-all_w0 <- data.frame(
-	R2 = c(
-  	PseudoR2(glm(W0 ~ PRS, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC2, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + age_W0, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W0 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W0 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "Sex", "Full model")) %>%
-	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W0", "Sex", "Full model")))
+	if (include_sex) {
+		required <- c(required, "gender")
+	}
 
-all_w1 <- data.frame(
-		R2 = c(
-	  PseudoR2(glm(W1 ~ PRS, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC2, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + age_W1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W1 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W1 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W1", "Sex", "Full model")) %>%
-	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W1", "Sex", "Full model")))
+	wave_data <-
+		database %>%
+		filter(if_all(all_of(required), ~ !is.na(.x)))
 
-all_w2 <-
-	data.frame(
-		R2 = c(
-	  PseudoR2(glm(W2 ~ PRS, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC1, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC2, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + age_W2, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-  	PseudoR2(glm(W2 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W2 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W2", "Sex", "Full model")) %>%
-	mutate(var = factor(var, levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W2", "Sex", "Full model")))
+	if (nrow(wave_data) == 0) {
+		stop(paste("No complete observations for", wave))
+	}
 
-all_w3 <-
-	data.frame(
-		R2 = c(
-			PseudoR2(glm(W3 ~ PRS, family = "binomial", data = all), which = "Nagelkerke"),
-			PseudoR2(glm(W3 ~ PRS + PC1, family = "binomial", data = all), which = "Nagelkerke"),
-			PseudoR2(glm(W3 ~ PRS + PC2, family = "binomial", data = all), which = "Nagelkerke"),
-			PseudoR2(glm(W3 ~ PRS + PC3, family = "binomial", data = all), which = "Nagelkerke"),
-			PseudoR2(glm(W3 ~ PRS + PC4, family = "binomial", data = all), which = "Nagelkerke"),
-			PseudoR2(glm(W3 ~ PRS + age_W3, family = "binomial", data = all), which = "Nagelkerke"),
-			PseudoR2(glm(W3 ~ PRS + gender, family = "binomial", data = all), which = "Nagelkerke"),
-			PseudoR2(glm(W3 ~ PRS + PC1 + PC2 + PC3 + PC4 + age_W3 + gender, family = "binomial", data = all), which = "Nagelkerke")),
-		var = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W3", "Sex", "Full model")) %>%
-	mutate(
-		var = factor(
-			var,
-			levels = c("PRS", "PC1", "PC2", "PC3", "PC4", "age_W3", "Sex", "Full model")))
+	# Confirm binary coding. The original W0-W3 recoding above is unchanged.
+	if (!all(wave_data[[wave]] %in% c(0, 1))) {
+		stop(paste("Outcome is not binary (0/1) in", wave))
+	}
 
+	terms <- list(
+		"PRS raw"      = "PRS",
+		"PRS adjusted" = "PRS_adj",
+		"PRS + PC1"    = c("PRS", "PC1"),
+		"PRS + PC2"    = c("PRS", "PC2"),
+		"PRS + PC3"    = c("PRS", "PC3"),
+		"PRS + PC4"    = c("PRS", "PC4"),
+		"PRS + PCs"    = c("PRS", pc_terms),
+		"PRS + age"    = c("PRS", age)
+	)
+
+	if (include_sex) {
+		terms[["PRS + sex"]] <- c("PRS", "gender")
+	}
+
+	terms[["Full model"]] <- c(
+		"PRS", pc_terms, age,
+		if (include_sex) "gender")
+
+	fit_model <- function(predictors) {
+		glm(
+			reformulate(predictors, response = wave),
+			family = "binomial",
+			data = wave_data)
+	}
+
+	models <- lapply(terms, fit_model)
+
+	r2 <- vapply(
+		models,
+		function(model) {
+			as.numeric(PseudoR2(model, which = "Nagelkerke"))
+		},
+		numeric(1))
+
+	# With the PCs included, raw and residualized PRS reparameterize
+	# the same full model; their fitted probabilities should agree.
+	full_adj <- fit_model(c(
+		"PRS_adj", pc_terms, age,
+		if (include_sex) "gender"))
+
+	if (!isTRUE(all.equal(
+		as.numeric(fitted(full_adj)),
+		as.numeric(fitted(models[["Full model"]])),
+		tolerance = 1e-7))) {
+		warning(paste("Full-model predictions differ after PRS residualization at", wave))
+	}
+
+	# All three models below contain PGS: changes are relative to PRS-only.
+	comparison <- data.frame(
+		wave = wave,
+		N = nrow(wave_data),
+		PRS_raw_R2 = unname(r2["PRS raw"]),
+		PRS_adjusted_R2 = unname(r2["PRS adjusted"]),
+		PRS_plus_PCs_R2 = unname(r2["PRS + PCs"]),
+		full_R2 = unname(r2["Full model"]),
+		delta_adjusted_vs_raw_R2 = unname(r2["PRS adjusted"] - r2["PRS raw"]),
+		delta_PRS_plus_PCs_vs_raw_R2 = unname(r2["PRS + PCs"] - r2["PRS raw"]),
+		delta_full_vs_raw_R2 = unname(r2["Full model"] - r2["PRS raw"])
+	)
+
+	result <- data.frame(
+		wave = wave,
+		var = factor(names(r2), levels = names(terms)),
+		R2 = unname(r2),
+		N = nrow(wave_data)
+	)
+
+	list(result = result, comparison = comparison)
+}
+
+# W0-W3
+waves <- c("W0", "W1", "W2", "W3")
+models <- lapply(waves, function(wave) calc_r2(all, wave))
+
+results <- bind_rows(lapply(models, `[[`, "result"))
+comparison <- bind_rows(lapply(models, `[[`, "comparison"))
+
+print(comparison, row.names = FALSE)
+
+write.csv(results, "fig7sup_prs_model_R2.csv", row.names = FALSE)
+write.csv(comparison, "fig7sup_prs_comparison.csv", row.names = FALSE)
+
+# Plot: each panel contains ONE wave only, ONE red PRS-only baseline
+# The .env$wave syntax avoids matching the wave column to itself.
 ggthemr("grape")
 
-p1 <-
-	ggplot(all_w0, aes(var, R2, fill = var)) +
-		geom_col() +
-		geom_text(label = paste0(round(all_w0$R2 * 100, 2), "%"), vjust = -1) +
-    scale_fill_grey(start = 0.2, end = 0.8) +
+results <-
+	results %>%
+	mutate(label = sprintf("%.2f%%", R2 * 100))
+
+max_r2 <- max(results$R2, na.rm = TRUE)
+y_max <- max(0.01, ceiling(max_r2 * 1.30 / 0.01) * 0.01)
+
+plot_wave <- function(wave) {
+	tab <- filter(results, .data$wave == .env$wave)
+	baseline <- tab$R2[as.character(tab$var) == "PRS raw"]
+
+	stopifnot(nrow(tab) > 0, length(baseline) == 1)
+
+	ggplot(tab, aes(x = var, y = R2, fill = var)) +
+		geom_col(width = 0.8) +
+		geom_text(aes(label = label), vjust = -0.4, size = 2.4) +
 		geom_hline(
-			yintercept = all_w0$R2[1],
+			yintercept = baseline,
 			linetype = "dashed",
 			color = "red") +
-		scale_y_continuous(limits = c(0, 0.05), n.breaks = 5, expand = expansion(mult = c(0.05, 0.15))) +
-		labs(y = "", x = "") +
+		scale_fill_grey(start = 0.2, end = 0.8) +
+		scale_y_continuous(
+			limits = c(0, y_max),
+			breaks = pretty(c(0, y_max), n = 5),
+			labels = function(x) paste0(round(100 * x, 1), "%"),
+			expand = expansion(mult = c(0.01, 0.03))) +
+		labs(
+			title = paste0(wave, " (n = ", unique(tab$N), ")"),
+			x = "",
+			y = "Nagelkerke pseudo-R²") +
 		theme_publish() +
 		theme(
 			legend.position = "none",
-			axis.title = element_text(size = 10),
-			axis.text = element_text(size = 10))
+			axis.text.x = element_text(angle = 48, hjust = 1, size = 8),
+			axis.text.y = element_text(size = 8),
+			axis.title = element_text(size = 9),
+			plot.title = element_text(size = 10),
+			panel.grid.major.x = element_blank())
+}
 
-p2 <-
-	ggplot(all_w1, aes(var, R2, fill = var)) +
-	  geom_col() +
-	  geom_text(label = paste0(round(all_w1$R2 * 100, 2), "%"), vjust = -1) +
-    scale_fill_grey(start = 0.2, end = 0.8) +
-		geom_hline(
-			yintercept = all_w1$R2[1],
-			linetype = "dashed",
-			color = "red") +
-	  scale_y_continuous(limits = c(0, 0.05), n.breaks = 5, expand = expansion(mult = c(0.05, 0.15))) +
-	  labs(y = "\nExplained Variance [Nagelkerke]\n", x = "") +
-	  theme_publish() +
-	  theme(
-			legend.position = "none",
-			axis.title = element_text(size = 10),
-			axis.text = element_text(size = 10))
+p1 <- plot_wave("W0")
+p2 <- plot_wave("W1")
+p3 <- plot_wave("W2")
+p4 <- plot_wave("W3")
 
-p3 <-
-	ggplot(all_w2, aes(var, R2, fill = var)) +
-    geom_col() +
-    geom_text(label = paste0(round(all_w2$R2 * 100, 2), "%"), vjust = -1) +
-    scale_y_continuous(limits = c(0, 0.05), n.breaks = 5, expand = expansion(mult = c(0.05, 0.15))) +
-    scale_fill_grey(start = 0.2, end = 0.8) +
-		geom_hline(
-			yintercept = all_w2$R2[1],
-			linetype = "dashed",
-			color = "red") +
-    labs(y = "", x = "") +
-    theme_publish() +
-    theme(
-        legend.position = "none",
-        axis.title = element_text(size = 10),
-        axis.text = element_text(size = 10))
+final <-
+	p1 / p2 / p3 / p4 +
+	plot_annotation(tag_levels = "A")
 
-p4 <-
-	ggplot(all_w3, aes(var, R2, fill = var)) +
-	geom_col() +
-	geom_text(label = paste0(round(all_w3$R2 * 100, 2), "%"), vjust = -1) +
-	scale_fill_grey(start = 0.2, end = 0.8) +
-		geom_hline(
-			yintercept = all_w3$R2[1],
-			linetype = "dashed",
-			color = "red") +
-	scale_y_continuous(
-		limits = c(0, 0.05),
-		n.breaks = 5,
-		expand = expansion(mult = c(0.05, 0.15))) +
-	labs(y = "", x = "") +
-	theme_publish() +
-	theme(
-		legend.position = "none",
-		axis.title = element_text(size = 10),
-		axis.text = element_text(size = 10))
-
-library(patchwork)
-
-final <- p1 / p2 / p3 / p4 +
-	plot_annotation(tag_levels = c("A", "B", "C", "D"))
-
-ggsave("fig6_sup.png",final, device = "png", width = 200, height = 300, units = "mm", dpi = 300, bg = "white")
+ggsave(
+	"fig7_sup.png",
+	final,
+	device = "png",
+	width = 250,
+	height = 320,
+	units = "mm",
+	dpi = 300,
+	bg = "white")
