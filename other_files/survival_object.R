@@ -7,9 +7,7 @@ database <-
 	mutate(across(c(W0, W1, W2, W3), ~ ifelse(.x == 2, 1, .x)))
 
 # Family history
-hist <-
-	data$family_history %>%
-	mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
+hist <- data$family_history
 
 # PCA per subset
 all_pcs <-

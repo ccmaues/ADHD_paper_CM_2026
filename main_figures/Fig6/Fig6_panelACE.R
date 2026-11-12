@@ -83,7 +83,7 @@ surv <-
 p1 <-
   surv$plot +
   scale_color_manual(values = c("90th" = "#670D2F", "else" = "#c4c4c470", "10th" = "#129990")) +
-  scale_y_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2), limits = c(0, 0.20), labels = function(y) sprintf("%.2f", y)) +
+  scale_y_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35), limits = c(0, 0.35), labels = function(y) sprintf("%.2f", y)) +
   scale_x_continuous(limits = c(0, 30), breaks = c(0, 5, 10, 12, 15, 20, 30)) +
   geom_segment(
     aes(x = 12, xend = 12, y = 0, yend = max(bt1_y, tp1_y)),
@@ -93,7 +93,7 @@ p1 <-
   geom_text(aes(x = 12.5, y = tp1_y, label = tp1), color = "#670D2F", size = 3, hjust = -0.1) +
   geom_text(aes(x = 12.5, y = bt1_y, label = bt1), color = "#129990", size = 3, hjust = -0.1) +
   labs(y = "", x = "", title = "all") +
-  theme_publish(base_size = 10) +
+  theme_publish(base_size = 12) +
   theme(
     legend.position = "top",
     panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.2))
@@ -101,7 +101,7 @@ p1 <-
 # Panel C
 surv <-
   ggsurvplot(
-    fit2,                                     # objeto com a função
+    fit3,                                     # objeto com a função
     data = wd_males,                          # objeto criador da função
     fun = "event",                            # função de transformação da curva de sobrevivência
     xlab = "Age (yr)",                        # titulo do eixo x
@@ -114,17 +114,17 @@ surv <-
 p2 <-
   surv$plot +
   scale_color_manual(values = c("90th" = "#670D2F", "else" = "#c4c4c470", "10th" = "#129990")) +
-  scale_y_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2), limits = c(0, 0.20), labels = function(y) sprintf("%.2f", y)) +
+  scale_y_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35), limits = c(0, 0.35), labels = function(y) sprintf("%.2f", y)) +
   scale_x_continuous(limits = c(0, 30), breaks = c(0, 5, 10, 12, 15, 20, 30)) +
   geom_segment(
-    aes(x = 12, xend = 12, y = 0, yend = max(bt2_y, tp2_y)),
+    aes(x = 12, xend = 12, y = 0, yend = max(bt3_y, tp3_y)),
     color = "black", size = 0.2) +
-  geom_point(aes(x = 12, y = tp2_y), color = "#670D2F", size = 1.5) +
-  geom_point(aes(x = 12, y = bt2_y), color = "#129990", size = 1.5) +
-  geom_text(aes(x = 12.5, y = tp2_y, label = tp2), color = "#670D2F", size = 3, hjust = -0.1) +
-  geom_text(aes(x = 12.5, y = bt2_y, label = bt2), color = "#129990", size = 3, hjust = -0.1) +
+  geom_point(aes(x = 12, y = tp3_y), color = "#670D2F", size = 1.5) +
+  geom_point(aes(x = 12, y = bt3_y), color = "#129990", size = 1.5) +
+  geom_text(aes(x = 12.5, y = tp3_y, label = tp3), color = "#670D2F", size = 3, hjust = -0.1) +
+  geom_text(aes(x = 12.5, y = bt3_y, label = bt3), color = "#129990", size = 3, hjust = -0.1) +
   labs(y = "Cumulative event probability", x = "", title = "males") +
-  theme_publish(base_size = 10) +
+  theme_publish(base_size = 12) +
   theme(
     legend.position = "none",
     panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.2))
@@ -132,9 +132,10 @@ p2 <-
 # Panel E
 surv <-
   ggsurvplot(
-    fit3,                                     # objeto com a função
+    fit2,                                     # objeto com a função
     data = wd_females,                        # objeto criador da função
     fun = "event",                            # função de transformação da curva de sobrevivência
+    xlim = c(0, 30),                          # correcao estetica
     xlab = "Age (yr)",                        # titulo do eixo x
     risk.table = FALSE,                       # tabela de risco
     ggtheme = theme_publish(base_size = 7),   # tema
@@ -145,17 +146,17 @@ surv <-
 p3 <-
   surv$plot +
   scale_color_manual(values = c("90th" = "#670D2F", "else" = "#c4c4c470", "10th" = "#129990")) +
-  scale_y_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3), limits = c(0, 0.3)) +
+  scale_y_continuous(breaks = c(0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35), limits = c(0, 0.35), labels = function(y) sprintf("%.2f", y)) +
   scale_x_continuous(limits = c(0, 30), breaks = c(0, 5, 10, 12, 15, 20, 30)) +
   geom_segment(
-    aes(x = 12, xend = 12, y = 0, yend = max(bt3_y, tp3_y)),
+    aes(x = 12, xend = 12, y = 0, yend = max(bt2_y, tp2_y)),
     color = "black", size = 0.2) +
-  geom_point(aes(x = 12, y = tp3_y), color = "#670D2F", size = 1.5) +
-  geom_point(aes(x = 12, y = bt3_y), color = "#129990", size = 1.5) +
-  geom_text(aes(x = 12.5, y = tp3_y, label = tp3), color = "#670D2F", size = 3, hjust = -0.1) +
-  geom_text(aes(x = 12.5, y = bt3_y, label = bt3), color = "#129990", size = 3, hjust = -0.1) +
+  geom_point(aes(x = 12, y = tp2_y), color = "#670D2F", size = 1.5) +
+  geom_point(aes(x = 12, y = bt2_y), color = "#129990", size = 1.5) +
+  geom_text(aes(x = 12.5, y = tp2_y, label = tp2), color = "#670D2F", size = 3, hjust = -0.1) +
+  geom_text(aes(x = 12.5, y = bt2_y, label = bt2), color = "#129990", size = 3, hjust = -0.1) +
   labs(y = "", x = "Age (yr)", title = "females") +
-  theme_publish(base_size = 10) +
+  theme_publish(base_size = 12) +
   theme(
     legend.position = "none",
     panel.grid.major.y = element_line(linetype = "dashed", color = "#c1c1c1", size = 0.2))
@@ -169,8 +170,8 @@ ggsave(
   "Fig6_panelACE.png",
   final,
   device = "png",
-  width = 15,
-  height = 20,
+  width = 20,
+  height = 25,
   units = "cm",
   dpi = 400,
   bg = "white")

@@ -1,19 +1,12 @@
 # Cumulative ADHD probability by age
 # Supplementary Table S24
 
-pacman::p_load(
-	dplyr,
-	tidyr,
-	survival,
-	flextable)
+pacman::p_load(dplyr, tidyr, survival, flextable)
 
-source(
-	"C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
-
+source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 # --------------------------------------------------
 # Working data
 # --------------------------------------------------
-
 wd <-
 	survival_data %>%
 	inner_join(
@@ -27,7 +20,6 @@ wd <-
 # --------------------------------------------------
 # Cox models
 # --------------------------------------------------
-
 cox_all <-
 	coxph(
 		Surv(time, status) ~
@@ -65,13 +57,7 @@ fit_fem <- survfit(cox_fem)
 fit_man <- survfit(cox_man)
 
 # Ages reported in original table
-ages <- c(
-	5,
-	10,
-	12,
-	15,
-	20,
-	25)
+ages <- c(5, 10, 12, 15, 20, 25)
 
 # --------------------------------------------------
 # Extract cumulative event probability

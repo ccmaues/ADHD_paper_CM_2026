@@ -35,19 +35,32 @@ correct_prs <- function(df) {
 
 # evaluation
 get_metrics <- function(wave, df, sex_adjust = TRUE) {
+
   age_var <- paste0("age_", wave)
   formula <- if (sex_adjust) {
     as.formula(paste0(wave, " ~ PRS + any_hist + gender + ", age_var))
-  } else {
+      } else {
     as.formula(paste0(wave, " ~ PRS + any_hist + ", age_var))}
+
   model <- glm(formula, family = "binomial", data = df)
+  observed <- model.response(model.frame(model))
+  predicted <- as.numeric(predict(model, type = "response"))
+
   r2 <- as.numeric(PseudoR2(model, which = "Nagelkerke"))
-  auroc <- as.numeric(gROC(X = df$PRS, D = df[[wave]], pvac.auc = TRUE, side = "auto")$auc)
-  aucpr <- as.numeric(
-    pr.curve(scores.class0 = df$PRS, weights.class0 = df[[wave]],
-      curve = TRUE, sorted = FALSE, max.compute = TRUE,
-      min.compute = TRUE, rand.compute = TRUE)$auc.integral)
-  tibble(wave = wave, predictor = c("R2", "AUROC", "AUCPR"), value = c(r2, auroc, aucpr))}
+
+  auroc <- as.numeric(PRROC::roc.curve(
+    scores.class0 = predicted,
+    weights.class0 = observed,
+    curve = FALSE)$auc)
+
+  aucpr <- as.numeric(PRROC::pr.curve(
+    scores.class0 = predicted,
+    weights.class0 = observed,
+    curve = FALSE)$auc.integral)
+
+  tibble(wave = wave,
+         predictor = c("R2", "AUROC", "AUCPR"),
+         value = c(r2, auroc, aucpr))}
 # -----------------------
 nrow(data)
 waves <- c("W0", "W1", "W2", "W3")
@@ -84,8 +97,8 @@ final <-
     scale_shape_manual(values = c("R²" = 16, "AUROC" = 17, "AUCPR" = 15)) +
     scale_x_discrete(expand = expansion(mult = c(0.05, 0.20))) +
     scale_y_continuous(
-        limits = c(0, 65),
-        breaks = seq(0, 60, by = 5),
+        limits = c(0, 70),
+        breaks = seq(0, 70, by = 5),
         labels = \(x) ifelse(x %% 10 == 0, sprintf("%.2f", x), ""),
         expand = expansion(mult = c(0.02, 0.05))) +
     facet_wrap(
