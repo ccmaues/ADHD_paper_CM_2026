@@ -332,7 +332,7 @@ family_hist <-
       c(parent_mania, parent_dep,
         parent_panic, parent_psych,
         parent_adhd, parent_alc,
-        parent_drug), ~ .x == 1)),
+        parent_drug, imini_cur_any_anx), ~ .x == 1)),
     across(where(is.numeric), as.factor)) %>%
   rename(parent_anx = imini_cur_any_anx) %>%
   select(1, starts_with("parent_"), 12, any_hist)
