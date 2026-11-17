@@ -18,12 +18,12 @@ all <-
 for_plot_HR <-
   all %>%
   mutate(
-    term = recode(
-      term,
-      "genderMale" = "Gender",
-      "siteRS" = "Site",
-      "any_hist" = "Family history",
-      "percentile90th" = "90th"),
+    term = case_when(
+      term == "genderMale" ~ "Gender",
+      term == "siteRS" ~ "Site",
+      startsWith(term, "any_hist") ~ "Family history",
+      term == "percentile90th" ~ "90th",
+      TRUE ~ term),
     stars = case_when(
       p.value < 0.001 ~ "***",
       p.value < 0.01 ~ "**",

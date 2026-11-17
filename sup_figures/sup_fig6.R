@@ -1,5 +1,5 @@
 # AUROC and AUCPR over time
-pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, nsROC, PRROC)
+pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, nsROC, PRROC, patchwork)
 
 data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
 database <-
@@ -24,7 +24,7 @@ man_pcs <-
 
 # PRS correction
 shapiro.test(all_pcs$PRS)
-new_PRS <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4 + gender, family = "gaussian", data = all_pcs))
+new_PRS <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = all_pcs))
 database <- cbind(select(database, -PRS), PRS = new_PRS)
 
 shapiro.test(fem_pcs$PRS)

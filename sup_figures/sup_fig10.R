@@ -101,106 +101,82 @@ wave_colors <- c(
 ggthemr("fresh")
 
 p1 <-
-	ggplot(
-		overall_for_plot,
-		aes(
-			x = age,
-			y = prevalence * 100,
-			color = wave,
-			group = wave)) +
+	ggplot(overall_for_plot,aes(x = age,
+															y = prevalence * 100,
+															color = wave,
+															group = wave)) +
 	geom_line(linewidth = 1, alpha = 0.4) +
 	geom_point(aes(size = N)) +
-	stat_smooth(
-		method = "lm",
-		formula = y ~ x,
-		geom = "smooth",
-		se = FALSE,
-		linetype = "dashed",
-		linewidth = 1) +
+	stat_smooth(method = "lm",
+							formula = y ~ x,
+							geom = "smooth",
+							se = FALSE,
+							linetype = "dashed",
+							linewidth = 1) +
 	scale_color_manual(values = wave_colors) +
 	scale_x_continuous(n.breaks = 20) +
-	scale_y_continuous(
-		n.breaks = 8,
-		limits = c(0, 30)) +
+	scale_y_continuous(n.breaks = 8, limits = c(0, 40)) +
 	labs(y = "\n", x = "") +
 	guides(size = guide_legend(nrow = 1)) +
 	theme_publish() +
-	theme(
-		legend.position = "none",
-		text = element_text(size = 15),
-		axis.text = element_text(size = 15),
-		axis.line.x = element_blank(),
-		axis.ticks.x = element_blank(),
-		axis.text.x = element_blank(),
-		axis.line.y = element_line(
-			color = "black",
-			linewidth = 0.5))
+	theme(legend.position = "none",
+				text = element_text(size = 15),
+				axis.text = element_text(size = 15),
+				axis.line.x = element_blank(),
+				axis.ticks.x = element_blank(),
+				axis.text.x = element_blank(),
+				axis.line.y = element_line(color = "black",
+																	 linewidth = 0.5))
 
 p2 <-
-	ggplot(
-		male_for_plot,
-		aes(
-			x = age,
-			y = prevalence * 100,
-			color = wave,
-			group = wave)) +
+	ggplot(male_for_plot, aes(x = age,
+														y = prevalence * 100,
+														color = wave,
+														group = wave)) +
 	geom_line(linewidth = 1, alpha = 0.4) +
 	geom_point(aes(size = N)) +
-	stat_smooth(
-		method = "lm",
-		formula = y ~ x,
-		geom = "smooth",
-		se = FALSE,
-		linetype = "dashed",
-		linewidth = 1) +
+	stat_smooth(method = "lm",
+							formula = y ~ x,
+							geom = "smooth",
+							se = FALSE,
+							linetype = "dashed",
+							linewidth = 1) +
 	scale_color_manual(values = wave_colors) +
 	scale_x_continuous(n.breaks = 20) +
-	scale_y_continuous(
-		n.breaks = 8,
-		limits = c(0, 30)) +
+	scale_y_continuous(n.breaks = 8, limits = c(0, 40)) +
 	labs(y = "Prevalence\n", x = "") +
 	theme_publish() +
-	theme(
-		legend.position = "none",
-		text = element_text(size = 15),
-		axis.text = element_text(size = 15),
-		axis.line.x = element_blank(),
-		axis.ticks.x = element_blank(),
-		axis.text.x = element_blank(),
-		axis.line.y = element_line(
-			color = "black",
-			linewidth = 0.5))
+	theme(legend.position = "none",
+				text = element_text(size = 15),
+				axis.text = element_text(size = 15),
+				axis.line.x = element_blank(),
+				axis.ticks.x = element_blank(),
+				axis.text.x = element_blank(),
+				axis.line.y = element_line(color = "black",
+																	 linewidth = 0.5))
 
 p3 <-
-	ggplot(
-		female_for_plot,
-		aes(
-			x = age,
-			y = prevalence * 100,
-			color = wave,
-			group = wave)) +
+	ggplot(female_for_plot, aes(x = age,
+															y = prevalence * 100,
+															color = wave,
+															group = wave)) +
 	geom_line(linewidth = 1, alpha = 0.4) +
 	geom_point(aes(size = N)) +
-	stat_smooth(
-		method = "lm",
-		formula = y ~ x,
-		geom = "smooth",
-		se = FALSE,
-		linetype = "dashed",
-		linewidth = 1) +
+	stat_smooth(method = "lm",
+							formula = y ~ x,
+							geom = "smooth",
+							se = FALSE,
+							linetype = "dashed",
+							linewidth = 1) +
 	scale_color_manual(values = wave_colors) +
 	scale_x_continuous(n.breaks = 20) +
-	scale_y_continuous(
-		n.breaks = 8,
-		limits = c(0, 30)) +
+	scale_y_continuous(n.breaks = 8, limits = c(0, 40)) +
 	labs(y = "\n", x = "Age (yr)", color = "") +
 	theme_publish() +
-	theme(
-		axis.title = element_text(size = 15),
-		axis.text = element_text(size = 15),
-		axis.line.y = element_line(
-			color = "black",
-			linewidth = 0.5))
+	theme(axis.title = element_text(size = 15),
+				axis.text = element_text(size = 15),
+				axis.line.y = element_line(color = "black",
+																	 linewidth = 0.5))
 
 final <-
 	p1 / p2 / p3 +

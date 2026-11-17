@@ -1,6 +1,6 @@
 pacman::p_load(dplyr, data.table, tidyr)
 
-data <- readRDS("C:/Users/Cass/Documents/work/cass_20102026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds") # final
 
 database <-
 	data$proband_data %>%
@@ -30,7 +30,7 @@ new_PRS <-
 	mutate(
 		PRS = residuals(
 			glm(
-				PRS ~ PC1 + PC2 + PC3 + PC4 + gender,
+				PRS ~ PC1 + PC2 + PC3 + PC4,
 				family = "gaussian",
 				data = .))) %>%
 	select(IID, PRS)

@@ -8,7 +8,6 @@ database <-
 
 # Family history
 hist <- data$family_history %>%
-  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0)) %>%
 	select(IID, any_hist)
 
 # PCA per subset

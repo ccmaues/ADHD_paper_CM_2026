@@ -28,11 +28,12 @@ male <-
 for_plot_HR <-
   rbind(female, male) %>%
   mutate(
-    term = recode(
-      term,
-      "siteRS" = "Site",
-      "percentile90th" = "90th",
-      "any_hist" = "Family\nhistory"),
+    term = case_when(
+      term == "genderMale" ~ "Gender",
+      term == "siteRS" ~ "Site",
+      startsWith(term, "any_hist") ~ "Family\nhistory",
+      term == "percentile90th" ~ "90th",
+      TRUE ~ term),
     stars = case_when(
       p.value < 0.001 ~ "***",
       p.value < 0.01 ~ "**",

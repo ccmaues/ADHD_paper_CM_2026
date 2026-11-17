@@ -4,9 +4,7 @@
 
 pacman::p_load(dplyr, tidyr, purrr, tibble)
 
-if (!exists("external_dir")) {
-  stop("Define external_dir first: folder containing Santoro_278BHRC_2026_04_23.rds")
-}
+external_dir <- "C:/Users/Cass/Documents/work/0_external_files/"
 
 output_dir <- getwd()
 fix_idate <- function(df) {
@@ -18,17 +16,12 @@ fix_idate <- function(df) {
     if (inherits(x, "IDate") && typeof(x) != "integer") {
       malformed <- c(malformed, v)
       df[[v]] <- as.Date(
-        as.numeric(unclass(x)), origin = "1970-01-01")
-    }
-  }
+        as.numeric(unclass(x)), origin = "1970-01-01")}}
 
   if (length(malformed) > 0) {
     message("Repaired malformed IDate columns: ",
-            paste(malformed, collapse = ", "))
-  }
-
-  df
-}
+            paste(malformed, collapse = ", "))}
+  df}
 
 raw_bhrc <- readRDS(
   file.path(external_dir, "Santoro_278BHRC_2026_04_23.rds")) %>%
@@ -52,9 +45,7 @@ figure1_reference <- tibble(
     "BHRC GitLab README: baseline protocol (also states cohort N=2511)",
     "Original Figure 1A; W1=2010 independently documented in BHRC literature",
     "Original Figure 1A; W2=1944 not verified in public GitLab README",
-    "Current 2026 RDS: observed evaluation evidence"
-  )
-)
+    "Current 2026 RDS: observed evaluation evidence"))
 
 # The named instruments/variables were checked in the 2026-04-23 source.
 required_vars <- c(

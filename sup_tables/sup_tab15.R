@@ -1,13 +1,4 @@
-# Odds ratio for low, intermediate, and high PRS groups
-# all samples, females, and males
-
-pacman::p_load(
-	dplyr,
-	tidyr,
-	purrr,
-	broom,
-	flextable)
-
+pacman::p_load(dplyr, tidyr, purrr, broom, flextable)
 options(scipen = 999)
 
 data <- readRDS(
@@ -73,7 +64,7 @@ prs_all <-
 	mutate(
 		PRS_adj = residuals(
 			glm(
-				PRS ~ PC1 + PC2 + PC3 + PC4 + gender,
+				PRS ~ PC1 + PC2 + PC3 + PC4,
 				family = "gaussian",
 				data = all_pcs))) %>%
 	select(
@@ -182,8 +173,7 @@ make_long <- function(df) {
 				type3,
 				levels = c(
 					"else",
-					"high")))
-}
+					"high")))}
 
 database_long <- make_long(database)
 females_long <- make_long(females)

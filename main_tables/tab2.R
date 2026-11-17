@@ -31,19 +31,44 @@ man_pcs <-
   inner_join(., select(males, IID, PRS), by = "IID")
 
 # PRS correction
-new_PRS <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4 + gender, family = "gaussian", data = all_pcs))
-new_PRS_fem <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = fem_pcs))
-new_PRS_man <- residuals(glm(PRS ~ PC1 + PC2 + PC3 + PC4, family = "gaussian", data = man_pcs))
+# PRS correction
+new_PRS <- all_pcs %>%
+  mutate(PRS = residuals(glm(
+        PRS ~ PC1 + PC2 + PC3 + PC4,
+        family = "gaussian",
+        data = all_pcs))) %>%
+  select(IID, PRS)
+
+new_PRS_fem <- fem_pcs %>%
+  mutate(PRS = residuals(glm(
+        PRS ~ PC1 + PC2 + PC3 + PC4,
+        family = "gaussian",
+        data = fem_pcs))) %>%
+  select(IID, PRS)
+
+new_PRS_man <- man_pcs %>%
+  mutate(PRS = residuals(glm(
+        PRS ~ PC1 + PC2 + PC3 + PC4,
+        family = "gaussian",
+        data = man_pcs))) %>%
+  select(IID, PRS)
 
 wd <- list(
-	all = cbind(select(database, -PRS), PRS = new_PRS),
-	fem = cbind(select(females, -PRS), PRS = new_PRS_fem),
-	man = cbind(select(males, -PRS), PRS = new_PRS_man)) %>%
-	lapply(., mutate, percentile = ntile(PRS, 100)) %>%
-  lapply(., mutate, risk_strata = case_when(
-    percentile <= 10 ~ "Low",
-    percentile >= 90 ~ "High",
-    TRUE ~ "Intermediate"))
+  all = database %>%
+    select(-PRS) %>%
+    inner_join(new_PRS, by = "IID"),
+
+  fem = females %>%
+    select(-PRS) %>%
+    inner_join(new_PRS_fem, by = "IID"),
+
+  man = males %>%
+    select(-PRS) %>%
+    inner_join(new_PRS_man, by = "IID")) %>%
+    lapply(., mutate, percentile = ntile(PRS, 100)) %>%
+    lapply(., mutate, risk_strata = case_when(percentile <= 10 ~ "Low",
+                                                    percentile >= 90 ~ "High",
+                                                    TRUE ~ "Intermediate"))
 
 section_rows <- which(wd$Overall == "")
 

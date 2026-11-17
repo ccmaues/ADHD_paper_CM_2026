@@ -146,7 +146,6 @@ str(longitudinal_wide)
 # -------------------------------------------------------------------------
 # 8. Optional W3 QC variables
 # -------------------------------------------------------------------------
-
 qc_vars <- intersect(
   c("p_height1", "p_height2", "dcadhdc", "dcadhdi", "dcadhdh", "dcadhdo", "wave"),
   names(bhrc_raw))
