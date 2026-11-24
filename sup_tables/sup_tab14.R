@@ -276,10 +276,22 @@ source_note <- paste0(
 # -------------------------------------------------------------------------
 # 4. Optional Figure 1 filtering flow if original data-processing objects exist
 # -------------------------------------------------------------------------
-needed <- c("dob_info", "mi", "data", "imputed_pheno", "all_pca", "proband_data")
+needed <- c(
+    "dob_info",
+    "mi",
+    "pre_reconstruction_data",
+    "imputed_pheno",
+    "all_pca",
+    "proband_data")
 
-if (all(vapply(needed, exists, logical(1), inherits = TRUE))) {
-  participants <- wave_db %>%
+if (all(vapply(
+    needed,
+    function(x) {
+        exists(x, envir = .GlobalEnv, inherits = FALSE) &&
+            is.data.frame(get(x, envir = .GlobalEnv))
+    },
+    logical(1)))) {
+    participants <- wave_db %>%
     filter(has_evaluation) %>%
     distinct(wave, ext_genid)
 
@@ -293,9 +305,12 @@ if (all(vapply(needed, exists, logical(1), inherits = TRUE))) {
   stage_IID <- stage_dob_id %>%
     inner_join(id_lookup, by = "ext_genid")
 
-  stage_PRS <- stage_IID %>%
-    semi_join(data %>% transmute(IID = as.character(IID)) %>% distinct(),
-              by = "IID")
+stage_PRS <-
+    stage_IID %>%
+    semi_join(pre_reconstruction_data %>%
+            transmute(IID = as.character(IID)) %>%
+            distinct(),
+        by = "IID")
 
   stage_phenotype <- stage_PRS %>%
     semi_join(imputed_pheno %>% transmute(IID = as.character(IID)) %>% distinct(),

@@ -13,23 +13,31 @@ source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 # --------------------------------------------------
 # Working data
 # --------------------------------------------------
-
 wd <-
 	survival_data %>%
 	inner_join(
-		select(
-			hist,
-			IID,
-			any_hist),
+		select(hist, IID, any_hist),
 		by = "IID") %>%
-	filter(
-		percentile == "90th")
+	filter(percentile == "90th")
+
+wd_females <-
+	survival_females %>%
+	inner_join(
+		select(hist, IID, any_hist),
+		by = "IID") %>%
+	filter(percentile == "90th")
+
+wd_males <-
+	survival_males %>%
+	inner_join(
+		select(hist, IID, any_hist),
+		by = "IID") %>%
+	filter(percentile == "90th")
 
 # --------------------------------------------------
 # Cox proportional hazards models
 # Top 10% PRS only
 # --------------------------------------------------
-
 all_90 <-
 	coxph(
 		Surv(time, status) ~
@@ -43,18 +51,14 @@ females_90 <-
 		Surv(time, status) ~
 			site +
 			any_hist,
-		data = filter(
-			wd,
-			gender == "Female"))
+		data = wd_females)
 
 males_90 <-
 	coxph(
 		Surv(time, status) ~
 			site +
 			any_hist,
-		data = filter(
-			wd,
-			gender == "Male"))
+		data = wd_males)
 
 # --------------------------------------------------
 # Final table

@@ -1,10 +1,14 @@
 pacman::p_load(dplyr, data.table, ggplot2, ggthemr, envalysis, tidyr, patchwork, stringr)
 options(scipen = 999) # disable scientific notation
 
-data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_23112026_ARTICLE.rds")
 database <-
 	data$proband_data %>%
 	mutate(across(c(W0, W1, W2, W3), ~ ifelse(.x == 2, 1, .x)))
+
+# Family history
+hist <- data$family_history %>%
+	select(IID, any_hist)
 
 # PCA per subset
 all_pcs <-
@@ -244,51 +248,6 @@ p3 <-
 # Case sample size per risk and wave
 wave_cols <- c(Control = "#ffffff", W0 = "#65ADC2", W1 = "#233B43", W2 = "#E84646", W3 = "#9B59B6")
 
-make_n_plot <- function(data, show_y = TRUE) {
-  wave_offsets <- c(W0 = -0.27, W1 = -0.09, W2 = 0.09, W3 = 0.27)
-
-  n_df <-
-    data %>%
-    filter(!is.na(diagnosis)) %>%
-    mutate(risk = factor(risk, levels = c(1, 2, 3, 4, 5)),
-      	   wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
-      	   diagnosis = factor(diagnosis, levels = c(0, 1), labels = c("Control", "Case"))) %>%
-    count(risk, wave, diagnosis, name = "n") %>%
-    group_by(risk, wave) %>%
-    mutate(pct = 100 * n / sum(n)) %>%
-    ungroup() %>%
-    mutate(x = as.numeric(risk) + unname(wave_offsets[as.character(wave)]),
-      	   fill_group = ifelse(diagnosis == "Control", "Control", as.character(wave)),
-      	   fill_group = factor(fill_group, levels = c("Control", "W0", "W1", "W2", "W3"))) %>%
-    arrange(risk, wave, diagnosis)
-  
-  ggplot(n_df, aes(x = x, y = pct, fill = fill_group, color = fill_group)) +
-    geom_col(width = 0.13, linewidth = 0.5) +
-    scale_x_continuous(breaks = 1:5,
-      				   labels = new_x_axis,
-      				   expand = expansion(mult = c(0.03, 0.03))) +
-    scale_y_continuous(breaks = seq(0, 40, by = 10),
-      				   limits = c(0, 40),
-      				   labels = \(x) paste0(x, "%")) +
-    scale_fill_manual(values = scales::alpha(wave_cols, alpha = 0.7)) +
-    scale_color_manual(values = wave_cols, guide = "none") +
-    labs(x = "", y = ifelse(show_y, "Cases %", ""), fill = "") +
-    theme_publish(base_size = 12) +
-    theme(legend.position = "none",
-		  axis.line.x = element_blank(),
-		  axis.text.x = element_blank(),
-		  axis.ticks.x = element_blank(),
-      	  panel.grid.major.x = element_blank(),
-          panel.grid.minor = element_blank(),
-		  panel.grid.major.y = element_line(
-				linetype = "dashed",
-				color = "#c1c1c1",
-				size = 0.2))}
-
-n1 <- make_n_plot(database_long, show_y = TRUE)
-n2 <- make_n_plot(males_long, show_y = FALSE)
-n3 <- make_n_plot(females_long, show_y = FALSE)
-
 ## Delta plots
 p6 <-
 	ggplot(all_plot_delta, aes(ntile, delta * 100)) +
@@ -324,9 +283,9 @@ p8 <-
 			  axis.ticks.x = element_blank())
 
 final <-
-    ((p1 / n1 / p6 + plot_layout(heights = c(1, 0.45, 0.5))) |
-     (p2 / n2 / p7 + plot_layout(heights = c(1, 0.45, 0.5))) |
-     (p3 / n3 / p8 + plot_layout(heights = c(1, 0.45, 0.5)))) +
+    ((p1 / p6 + plot_layout(heights = c(1, 0.5))) |
+     (p2 / p7 + plot_layout(heights = c(1, 0.5))) |
+     (p3 / p8 + plot_layout(heights = c(1, 0.5)))) +
   plot_annotation(tag_levels = "A")
 
 ggsave(
@@ -334,7 +293,7 @@ ggsave(
   final,
   device = "png",
   width = 30,
-  height = 20,
+  height = 15,
   units = "cm",
   dpi = 300,
   bg = "white")

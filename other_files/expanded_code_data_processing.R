@@ -5,7 +5,7 @@ pacman::p_load(lubridate, dplyr, data.table, tidyr)
 # -------------------------------------------------------------------------
 external_dir <- "C:/Users/Cass/Documents/work/0_external_files"
 prs_file <- "C:/Users/Cass/Documents/work/PRS_database_imputed/PRSCS_ADHD_2023_Score.profile"
-output_file <- "C:/Users/Cass/Documents/work/cass_20102026_ARTICLE.rds"
+output_file <- "C:/Users/Cass/Documents/work/cass_23112026_ARTICLE.rds.rds"
 
 # -------------------------------------------------------------------------
 # 3. ID dictionary / mirror

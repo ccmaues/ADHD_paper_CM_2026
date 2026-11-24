@@ -4,7 +4,7 @@ pacman::p_load(
 	dplyr, tidyr, nsROC, PRROC,
 	DescTools, purrr, gt)
 
-data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_23112026_ARTICLE.rds")
 
 # Family history
 hist <-
@@ -87,30 +87,26 @@ get_metrics <- function(wave, df, sex_adjust = TRUE) {
 			family = "binomial",
 			data = df)
 
+	observed <- model.response(model.frame(model))
+	predicted <- as.numeric(model$fitted.values)
+
 	r2 <-
 		as.numeric(
-			PseudoR2(
-				model,
-				which = "Nagelkerke"))
+			PseudoR2(model, which = "Nagelkerke"))
 
 	auroc <-
 		as.numeric(
-			gROC(
-				X = df$PRS,
-				D = df[[wave]],
-				pvac.auc = TRUE,
-				side = "auto")$auc)
+			PRROC::roc.curve(
+				scores.class0 = predicted,
+				weights.class0 = observed,
+				curve = FALSE)$auc)
 
 	aucpr <-
 		as.numeric(
-			pr.curve(
-				scores.class0 = df$PRS,
-				weights.class0 = df[[wave]],
-				curve = TRUE,
-				sorted = FALSE,
-				max.compute = TRUE,
-				min.compute = TRUE,
-				rand.compute = TRUE)$auc.integral)
+			PRROC::pr.curve(
+				scores.class0 = predicted,
+				weights.class0 = observed,
+				curve = FALSE)$auc.integral)
 
 	tibble(
 		wave = wave,

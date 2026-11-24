@@ -1,6 +1,6 @@
 pacman::p_load(dplyr, data.table, tidyr)
 
-data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds") # final
+data <- readRDS("C:/Users/Cass/Documents/work/cass_23112026_ARTICLE.rds") # final
 
 database <-
 	data$proband_data %>%
@@ -41,7 +41,7 @@ database <-
 	mutate(
 		risk = ntile(PRS, 100),
 		percentile = case_when(
-			risk >= 90 ~ "90th",
+			risk > 90 ~ "90th",
 			risk <= 10 ~ "10th",
 			TRUE ~ "else"),
 		percentile = factor(
@@ -67,7 +67,7 @@ females <-
 	mutate(
 		risk = ntile(PRS, 100),
 		percentile = case_when(
-			risk >= 90 ~ "90th",
+			risk > 90 ~ "90th",
 			risk <= 10 ~ "10th",
 			TRUE ~ "else"),
 		percentile = factor(
@@ -93,7 +93,7 @@ males <-
 	mutate(
 		risk = ntile(PRS, 100),
 		percentile = case_when(
-			risk >= 90 ~ "90th",
+			risk > 90 ~ "90th",
 			risk <= 10 ~ "10th",
 			TRUE ~ "else"),
 		percentile = factor(

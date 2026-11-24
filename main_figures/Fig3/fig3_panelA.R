@@ -1,7 +1,7 @@
 # PCA with genetic data (showing risk and gender)
 pacman::p_load(dplyr, data.table, tidyr, envalysis, ggplot2, ggthemr)
 
-data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_23112026_ARTICLE.rds")
 
 # Article dataset
 database <-
@@ -44,13 +44,13 @@ risk_colors <-
 # Panel A: PC1 x PC2
 p1 <-
     ggplot(for_plot, aes(PC1, PC2, shape = gender, color = n.risk)) +
-        geom_point(size = 1.5, alpha = 0.45) +
+        geom_point(size = 1.3, alpha = 0.45) +
         labs(
             y = "PC2",
             x = "PC1",
             shape = "",
             color = "PGS risk strata") +
-		guides(color = guide_legend(nrow = 1)) +
+		guides(color = guide_legend(nrow = 2, byrow = TRUE)) +
         theme_publish(base_size = 10) +
         theme(
             legend.position = "top",
@@ -59,7 +59,8 @@ p1 <-
                 color = "#cfcfcf",
                 linetype = "dashed",
                 linewidth = 0.2),
-            panel.grid.minor = element_blank()) +
+            panel.grid.minor = element_blank(),
+            aspect.ratio = 1, legend.box = "vertical") +
         scale_color_manual(
             values = risk_colors,
             breaks = factor(1:10, levels = 1:10),
@@ -71,7 +72,7 @@ ggsave(
 	p1,
 	device = "png",
 	units = "cm",
-	width = 20,
-	height = 6,
+	width = 10,
+	height = 12,
 	dpi = 400,
 	bg = "white")

@@ -8,45 +8,52 @@ source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 # Working data
 # --------------------------------------------------
 wd <-
-	survival_data %>%
-	inner_join(
-		select(
-			hist,
-			IID,
-			any_hist),
-		by = "IID") %>%
-	select(-IID)
+    survival_data %>%
+    inner_join(
+        select(hist, IID, any_hist),
+        by = "IID") %>%
+    select(-IID)
+
+wd_females <-
+    survival_females %>%
+    inner_join(
+        select(hist, IID, any_hist),
+        by = "IID") %>%
+    select(-IID)
+
+wd_males <-
+    survival_males %>%
+    inner_join(
+        select(hist, IID, any_hist),
+        by = "IID") %>%
+    select(-IID)
 
 # --------------------------------------------------
 # Cox models
 # --------------------------------------------------
 cox_all <-
-	coxph(
-		Surv(time, status) ~
-			strata(percentile) +
-			any_hist +
-			gender +
-			site,
-		data = wd)
+    coxph(
+        Surv(time, status) ~
+            strata(percentile) +
+            any_hist +
+            gender +
+            site,
+        data = wd)
 
 cox_fem <-
-	coxph(
-		Surv(time, status) ~
-			strata(percentile) +
-			any_hist,
-		data = filter(
-			wd,
-			gender == "Female"))
+    coxph(
+        Surv(time, status) ~
+            strata(percentile) +
+            any_hist,
+        data = wd_females)
 
 cox_man <-
-	coxph(
-		Surv(time, status) ~
-			strata(percentile) +
-			any_hist +
-			site,
-		data = filter(
-			wd,
-			gender == "Male"))
+    coxph(
+        Surv(time, status) ~
+            strata(percentile) +
+            any_hist +
+            site,
+        data = wd_males)
 
 # --------------------------------------------------
 # Survival curves

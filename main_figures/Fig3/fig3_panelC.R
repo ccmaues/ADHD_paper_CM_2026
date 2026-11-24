@@ -1,7 +1,7 @@
 # Violin plot PRS per diagnosis (W0, W1, W2) all samples
 pacman::p_load(dplyr, tidyr, ggthemr, envalysis, ggplot2, patchwork, ggpattern)
 
-data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_23112026_ARTICLE.rds")
 
 # Samples & PCs
 database <-
@@ -45,6 +45,8 @@ new_PRS_man <-
 		data = males))
 
 # Plotting object
+
+# Plotting object
 for_plot <-
     data.frame(
         W0 = database$W0,
@@ -57,15 +59,15 @@ for_plot <-
         names_to = "wave",
         values_to = "status") %>%
     mutate(
-        status = factor(status, levels = c("Case", "Control")),
+        status = factor(status, levels = c("Control", "Case")),
         wave = factor(wave, levels = c("W0", "W1", "W2", "W3")),
         group = factor(
             paste(wave, status),
             levels = c(
-                "W0 Case", "W0 Control",
-                "W1 Case", "W1 Control",
-                "W2 Case", "W2 Control",
-                "W3 Case", "W3 Control")),
+                "W0 Control", "W0 Case",
+                "W1 Control", "W1 Case",
+                "W2 Control", "W2 Case",
+                "W3 Control", "W3 Case")),
         xpos = c(
             0.86, 1.14,
             1.41, 1.69,
@@ -73,10 +75,10 @@ for_plot <-
             2.51, 2.79)[match(
             paste(wave, status),
             c(
-                "W0 Case", "W0 Control",
-                "W1 Case", "W1 Control",
-                "W2 Case", "W2 Control",
-                "W3 Case", "W3 Control"))])
+                "W0 Control", "W0 Case",
+                "W1 Control", "W1 Case",
+                "W2 Control", "W2 Case",
+                "W3 Control", "W3 Case"))])
 
 ggthemr("fresh")
 # I wanted to make each for wave (the same color scheme i was using)
@@ -131,15 +133,17 @@ final <-
             axis.text.x = element_text(angle = 0, hjust = 0.5),
             legend.position = "top") +
     guides(
-        fill = guide_legend(
-            order = 1,
-            override.aes = list(
-                pattern = "none")),
-        pattern = guide_legend(
-            order = 2,
-            override.aes = list(
-                fill = "grey80",
-                colour = NA)))
+    fill = guide_legend(
+        order = 1,
+        nrow = 2,
+        override.aes = list(
+            pattern = "none")),
+    pattern = guide_legend(
+        order = 2,
+        nrow = 2,
+        override.aes = list(
+            fill = "grey80",
+            colour = NA)))
 
 ggsave(
     "Fig3_panelC.png",

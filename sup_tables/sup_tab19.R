@@ -15,21 +15,17 @@ source(
 # --------------------------------------------------
 # Working data
 # --------------------------------------------------
-
 wd <-
-	survival_data %>%
-	inner_join(
-		select(
-			hist,
-			IID,
-			any_hist),
-		by = "IID") %>%
-	select(-IID)
+    bind_rows(survival_females, survival_males) %>%
+    inner_join(
+        select(hist, IID, any_hist),
+        by = "IID") %>%
+    drop_na(time, status, percentile, any_hist, site) %>%
+    select(-IID)
 
 # --------------------------------------------------
 # Model comparison function
 # --------------------------------------------------
-
 compare_cox_models <- function(data, sex) {
 
 	temp <-

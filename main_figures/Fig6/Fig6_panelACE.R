@@ -3,8 +3,8 @@ pacman::p_load(dplyr, ggplot2, envalysis, tidyr, patchwork, ggsurvfit, survminer
 source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 hist <-
-  readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")$family_history %>%
-  mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0))
+    data$family_history %>%
+    select(IID, any_hist)
 
 #---------------------------------
 # All samples

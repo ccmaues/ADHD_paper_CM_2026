@@ -14,7 +14,6 @@ source(
 # --------------------------------------------------
 # Working data
 # --------------------------------------------------
-
 wd <-
 	survival_data %>%
 	inner_join(
@@ -28,7 +27,6 @@ wd <-
 # --------------------------------------------------
 # All samples
 # --------------------------------------------------
-
 all_hist <-
 	coxph(
 		Surv(time, status) ~
@@ -52,15 +50,13 @@ all_no_hist <-
 # --------------------------------------------------
 # Females
 # --------------------------------------------------
-
 females_hist <-
 	coxph(
 		Surv(time, status) ~
 			percentile +
 			site,
 		data = filter(
-			wd,
-			gender == "Female",
+			wd_females,
 			any_hist == 1))
 
 females_no_hist <-
@@ -69,22 +65,19 @@ females_no_hist <-
 			percentile +
 			site,
 		data = filter(
-			wd,
-			gender == "Female",
+			wd_females,
 			any_hist == 0))
 
 # --------------------------------------------------
 # Males
 # --------------------------------------------------
-
 males_hist <-
 	coxph(
 		Surv(time, status) ~
 			percentile +
 			site,
 		data = filter(
-			wd,
-			gender == "Male",
+			wd_males,
 			any_hist == 1))
 
 males_no_hist <-
@@ -93,8 +86,7 @@ males_no_hist <-
 			percentile +
 			site,
 		data = filter(
-			wd,
-			gender == "Male",
+			wd_males,
 			any_hist == 0))
 
 # --------------------------------------------------

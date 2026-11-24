@@ -1,7 +1,7 @@
 # Odds ratio per PRS strata on W0, W1 and W2 (all samples)
 pacman::p_load(dplyr, broom, ggplot2, envalysis, ggthemr, patchwork)
 
-data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_23112026_ARTICLE.rds")
 
 database <-
 	data$proband_data %>%
@@ -25,9 +25,8 @@ new_PRS <-
 
 # Family history
 hist <-
-	data$family_history %>%
-	mutate(any_hist = if_else(if_any(starts_with("parent_"), ~ . == 1), 1, 0)) %>%
-	select(IID, any_hist)
+    data$family_history %>%
+    select(IID, any_hist)
 
 # Working data
 wd <-
@@ -136,6 +135,6 @@ ggsave(
     device = "png",
     units = "cm",
     width = 10,
-    height = 17,
+    height = 20,
     dpi = 400,
     bg = "white")

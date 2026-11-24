@@ -12,21 +12,30 @@ source("C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 # --------------------------------------------------
 # Working data
 # --------------------------------------------------
-
 wd <-
 	survival_data %>%
 	inner_join(
-		select(
-			hist,
-			IID,
-			any_hist),
+		select(hist, IID, any_hist),
+		by = "IID") %>%
+	select(-IID)
+
+wd_females <-
+	survival_females %>%
+	inner_join(
+		select(hist, IID, any_hist),
+		by = "IID") %>%
+	select(-IID)
+
+wd_males <-
+	survival_males %>%
+	inner_join(
+		select(hist, IID, any_hist),
 		by = "IID") %>%
 	select(-IID)
 
 # --------------------------------------------------
 # Cox proportional hazards models
 # --------------------------------------------------
-
 cox1 <-
 	coxph(
 		Surv(time, status) ~
@@ -41,9 +50,7 @@ cox2 <-
 		Surv(time, status) ~
 			strata(percentile) +
 			any_hist,
-		data = filter(
-			wd,
-			gender == "Female"))
+		data = wd_females)
 
 cox3 <-
 	coxph(
@@ -51,9 +58,7 @@ cox3 <-
 			strata(percentile) +
 			any_hist +
 			site,
-		data = filter(
-			wd,
-			gender == "Male"))
+		data = wd_males)
 
 # --------------------------------------------------
 # Final table

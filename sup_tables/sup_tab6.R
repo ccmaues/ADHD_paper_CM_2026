@@ -2,7 +2,7 @@
 # all samples
 pacman::p_load(dplyr, broom, flextable, gtsummary)
 
-data <- readRDS("C:/Users/Cass/Documents/work/cass_12102026_ARTICLE.rds")
+data <- readRDS("C:/Users/Cass/Documents/work/cass_23112026_ARTICLE.rds")
 
 # Proband data
 database <-
@@ -43,13 +43,8 @@ new_PRS <-
 
 # Family history
 hist <-
-	data$family_history %>%
-	mutate(
-		any_hist = if_else(
-			if_any(starts_with("parent_"), ~ . == 1),
-			1,
-			0)) %>%
-	select(IID, any_hist)
+    data$family_history %>%
+    select(IID, any_hist)
 
 # Working data
 wd <-

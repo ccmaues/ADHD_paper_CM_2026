@@ -13,14 +13,24 @@ source(
 # --------------------------------------------------
 # Working data
 # --------------------------------------------------
-
 wd <-
 	survival_data %>%
 	inner_join(
-		select(
-			hist,
-			IID,
-			any_hist),
+		select(hist, IID, any_hist),
+		by = "IID") %>%
+	select(-IID)
+
+wd_females <-
+	survival_females %>%
+	inner_join(
+		select(hist, IID, any_hist),
+		by = "IID") %>%
+	select(-IID)
+
+wd_males <-
+	survival_males %>%
+	inner_join(
+		select(hist, IID, any_hist),
 		by = "IID") %>%
 	select(-IID)
 
@@ -42,9 +52,7 @@ females <-
 		Surv(time, status) ~
 			percentile +
 			any_hist,
-		data = filter(
-			wd,
-			gender == "Female"))
+		data = wd_females)
 
 males <-
 	coxph(
@@ -52,9 +60,19 @@ males <-
 			percentile +
 			site +
 			any_hist,
-		data = filter(
-			wd,
-			gender == "Male"))
+		data = wd_males)
+
+# --------------------------------------------------
+# Proportional hazards assumption
+# --------------------------------------------------
+
+ph_all <- cox.zph(all)
+ph_fem <- cox.zph(females)
+ph_man <- cox.zph(males)
+
+print(ph_all)
+print(ph_fem)
+print(ph_man)
 
 # --------------------------------------------------
 # Final table

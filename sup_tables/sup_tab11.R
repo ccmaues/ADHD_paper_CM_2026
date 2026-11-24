@@ -10,8 +10,14 @@ source(
 	"C:/Users/Cass/Documents/work/ADHD_paper/other_files/survival_object.R")
 
 # Working data
-wd <-
-	survival_data %>%
+wd_females <-
+	survival_females %>%
+	inner_join(
+		select(hist, IID, any_hist),
+		by = "IID")
+
+wd_males <-
+	survival_males %>%
 	inner_join(
 		select(hist, IID, any_hist),
 		by = "IID")
@@ -19,32 +25,25 @@ wd <-
 # --------------------------------------------------
 # Females
 # --------------------------------------------------
-
 cox_fem <-
 	coxph(
 		Surv(time, status) ~
 			strata(percentile) +
-			any_hist +
-			site,
-		data = filter(
-			wd,
-			gender == "Female"))
+			any_hist,
+		data = wd_females)
 
 ph_fem <- cox.zph(cox_fem)
 
 # --------------------------------------------------
 # Males
 # --------------------------------------------------
-
 cox_man <-
 	coxph(
 		Surv(time, status) ~
 			strata(percentile) +
 			any_hist +
 			site,
-		data = filter(
-			wd,
-			gender == "Male"))
+		data = wd_males)
 
 ph_man <- cox.zph(cox_man)
 
@@ -65,7 +64,7 @@ tab_man <-
 		P_M = ph_man$table[, "p"])
 
 final <-
-	left_join(
+	full_join(
 		tab_fem,
 		tab_man,
 		by = "Variable") %>%
