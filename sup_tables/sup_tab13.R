@@ -1,608 +1,337 @@
-# phenotype imputation
-# removal and stats
-pacman::p_load(dplyr, tidyr, purrr, tibble, ggplot2)
+pacman::p_load(
+	dplyr,
+	tidyr,
+	purrr,
+	flextable,
+	officer)
 
-# -------------------------------------------------------------------------
-# 1. Paths and required objects
-# -------------------------------------------------------------------------
-if (!exists("external_dir")) {
-  stop("The object 'external_dir' is missing. Run the main preprocessing script first.")
-}
+# --------------------------------------------------
+# Database and cohort preparation
+# --------------------------------------------------
 
-required_objects <- c(
-  "mi", "dob_info", "bhrc_raw", "demographics", "longitudinal_wide",
-  "prs", "data", "imputed_pheno", "new_age", "fam", "pca_files_IDs",
-  "all_pca", "proband_data")
-
-missing_objects <- required_objects[!vapply(required_objects, exists, logical(1),
-                                          inherits = TRUE)]
-if (length(missing_objects) > 0) {
-  stop("Missing preprocessing objects: ", paste(missing_objects, collapse = ", "))
-}
-
-output_dir <- file.path(getwd(), "S13_outputs")
-dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
-
-source_file <- file.path(external_dir, "Santoro_278BHRC_2026_04_23.rds")
-if (!file.exists(source_file)) {
-  stop("Cannot find the source RDS: ", source_file)
-}
+data <- readRDS(
+	"C:/Users/Cass/Documents/work/cass_23112026_ARTICLE.rds")
 
 waves <- c("W0", "W1", "W2", "W3")
+cohort_levels <- c("All", "Male", "Female")
+pcs <- paste0("PC", 1:4)
 
-source_bhrc <- readRDS(source_file)
-raw_ext <- as.character(source_bhrc[["ext_genid"]])
-raw_events <- as.character(source_bhrc[["redcap_event_name"]])
-rm(source_bhrc)
+# Proband data
+proband <-
+	data$proband_data %>%
+	mutate(
+		across(
+			all_of(waves),
+			~ ifelse(.x == 2, 1, .x)))
 
-raw_w0_ids <- unique(raw_ext[raw_events == "wave0_arm_1" &
-                              !is.na(raw_ext) & nzchar(raw_ext)])
+# Canonical family history from expanded processing
+hist <-
+	data$family_history %>%
+	select(IID, any_hist)
 
-
-ids <- function(df, column = "IID") {
-  if (!is.data.frame(df) || !column %in% names(df)) {
-    stop("Expected a data.frame with column: ", column)
-  }
-  x <- as.character(df[[column]])
-  unique(x[!is.na(x) & nzchar(x)])
+# Verify unique identifiers and binary outcomes
+check_id <- function(df) {
+	stopifnot(!anyNA(df$IID), !anyDuplicated(df$IID))
 }
 
-assert_unique_ids <- function(df, object_name, column = "IID") {
-  x <- as.character(df[[column]])
-  x <- x[!is.na(x)]
-  if (anyDuplicated(x)) {
-    stop(object_name, " contains duplicate ", column,
-         " values. Resolve these before interpreting the audit.")
-  }
+invisible(lapply(
+	list(proband, hist, data$PCA_all_samples, data$PCA_by_sex),
+	check_id))
+
+stopifnot(
+	all(unlist(proband[waves]) %in% c(0, 1, NA)),
+	all(proband$gender %in% c("Male", "Female")))
+
+# PCA-adjusted PRS and fixed cohort-specific quintiles
+make_cohort <- function(df, pca, cohort) {
+
+	joined <-
+		df %>%
+		select(-any_of(c(pcs, "any_hist"))) %>%
+		inner_join(
+			select(pca, IID, all_of(pcs)),
+			by = "IID") %>%
+		inner_join(hist, by = "IID") %>%
+		drop_na(PRS, all_of(pcs)) %>%
+		arrange(IID)
+
+	if (nrow(joined) != nrow(df)) {
+		warning(cohort, ": retained ", nrow(joined), " of ", nrow(df),
+			" participants; review eligibility.")
+	}
+
+	stopifnot(nrow(joined) >= 5)
+
+	joined %>%
+		mutate(
+			PRS_raw = PRS,
+			PRS = residuals(
+				glm(
+					PRS ~ PC1 + PC2 + PC3 + PC4,
+					family = gaussian,
+					data = joined,
+					na.action = na.fail)),
+			risk = ntile(PRS, 5))
 }
 
-for (nm in c("data", "imputed_pheno", "new_age", "proband_data")) {
-  assert_unique_ids(get(nm), nm)
+# All samples: pooled PCA; sex subsets: sex-specific PCA
+cohorts <- list(
+	All = make_cohort(
+		proband,
+		data$PCA_all_samples,
+		"All"),
+	Male = make_cohort(
+		filter(proband, gender == "Male"),
+		data$PCA_by_sex,
+		"Male"),
+	Female = make_cohort(
+		filter(proband, gender == "Female"),
+		data$PCA_by_sex,
+		"Female"))
+
+# --------------------------------------------------
+# Model comparison on matched complete cases
+# --------------------------------------------------
+
+calc_r2 <- function(df, wave, r, cohort) {
+	covars <- c("any_hist", paste0("age_", wave))
+	if (cohort == "All") covars <- c("gender", covars)
+
+	sub <- df %>% filter(risk == r)
+	temp <- sub %>% select(all_of(c(wave, "PRS", covars))) %>% drop_na()
+	y <- temp[[wave]]
+
+	out <- tibble(
+		cohort = cohort, risk = r, wave = wave,
+		N_model = nrow(temp), N_cases_model = sum(y == 1),
+		N_controls_model = sum(y == 0),
+		PRS_SD_cohort = sd(df$PRS), PRS_SD_stratum = sd(sub$PRS),
+		PRS_SD = sd(temp$PRS), PRS_IQR = IQR(temp$PRS),
+		PRS_mean = if (nrow(temp)) mean(temp$PRS) else NA_real_,
+		PRS_SD_ratio = sd(temp$PRS) / sd(df$PRS),
+		PRS_case_control_diff = if (length(unique(y)) == 2)
+			mean(temp$PRS[y == 1]) - mean(temp$PRS[y == 0]) else NA_real_,
+		R2_PGS = NA_real_, R2_base = NA_real_, R2_full = NA_real_,
+		delta_R2 = NA_real_, LRT_p = NA_real_, converged = NA,
+		boundary = NA, note = "OK")
+
+	if (length(unique(y)) != 2) {
+		out$note <- "No outcome variation"
+		return(out)
+	}
+
+	# Constant covariates are uninformative and cannot be fit as factors.
+	keep_covars <- covars[vapply(temp[covars], function(x)
+		length(unique(x)) > 1, logical(1))]
+	if (length(keep_covars) != length(covars))
+		out$note <- "Constant covariate omitted; review model"
+	if (!is.finite(sd(temp$PRS)) || sd(temp$PRS) == 0) {
+		out$note <- "No PGS variation"
+		return(out)
+	}
+
+	fit <- function(x) glm(
+		reformulate(if (length(x)) x else "1", response = wave),
+		family = binomial, data = temp, na.action = na.fail)
+
+	tryCatch({
+		null <- fit(character(0))
+		pgs <- fit("PRS")
+		base <- fit(keep_covars)
+		full <- fit(c("PRS", keep_covars))
+		# Explicit common null likelihood for Nagelkerke pseudo-R2.
+		ll0 <- as.numeric(logLik(null))
+		n <- nrow(temp)
+		nr2 <- function(m) {
+			ll <- as.numeric(logLik(m))
+			100 * (-expm1(2 * (ll0 - ll) / n)) / (-expm1(2 * ll0 / n))
+		}
+		out$R2_PGS <- nr2(pgs)
+		out$R2_base <- nr2(base)
+		out$R2_full <- nr2(full)
+		out$delta_R2 <- out$R2_full - out$R2_base
+		if (full$rank - base$rank != 1L)
+			stop("PGS does not add one estimable coefficient")
+		out$LRT_p <- anova(base, full, test = "LRT")[2, "Pr(>Chi)"]
+		out$converged <- all(vapply(list(null, pgs, base, full),
+									function(m) m$converged, logical(1)))
+		out$boundary <- any(vapply(list(pgs, base, full),
+								  function(m) m$boundary ||
+									  any(fitted(m) < 1e-8 | fitted(m) > 1 - 1e-8),
+								  logical(1)))
+		out
+	}, error = function(e) {
+		out$note <- conditionMessage(e)
+		out
+	})
 }
 
-id_map <- mi %>%
-  transmute(ext_genid = as.character(ext_genid),
-            IID = as.character(IID)) %>%
-  filter(!is.na(ext_genid), !is.na(IID)) %>%
-  distinct()
-if (anyDuplicated(id_map$ext_genid) || anyDuplicated(id_map$IID)) {
-  stop("mi is not a one-to-one ext_genid <-> IID map; examine its duplicates.")
+r2 <-
+	imap_dfr(cohorts, function(df, cohort)
+		map_dfr(waves, function(w)
+			map_dfr(1:5, function(r) calc_r2(df, w, r, cohort))))
+
+# --------------------------------------------------
+# Analysis checks
+# --------------------------------------------------
+
+wd <- r2
+
+problem_models <-
+	wd %>%
+	filter(
+		note != "OK" |
+		!coalesce(converged, FALSE) |
+		coalesce(boundary, TRUE))
+
+if (nrow(problem_models) > 0) {
+	print(select(problem_models, cohort, wave, risk, note, converged, boundary))
+	stop("Review the flagged model sets before exporting S13.")
 }
 
-# -------------------------------------------------------------------------
-# 2. Sequential participant-level selection audit
-# -------------------------------------------------------------------------
-map_ext_to_iid <- function(x) {
-  z <- id_map$IID[match(x, id_map$ext_genid)]
-  unique(z[!is.na(z) & nzchar(z)])
+needed <- c(
+	"cohort", "risk", "wave", "N_model", "N_cases_model",
+	"N_controls_model", "PRS_SD_ratio", "R2_PGS", "R2_base",
+	"R2_full", "delta_R2", "LRT_p", "converged", "boundary", "note")
+
+stopifnot(
+	all(needed %in% names(wd)),
+	nrow(wd) == 60L,
+	!anyDuplicated(wd[c("cohort", "risk", "wave")]),
+	setequal(wd$cohort, cohort_levels),
+	setequal(wd$risk, 1:5),
+	setequal(wd$wave, waves),
+	all(wd$converged),
+	!any(wd$boundary),
+	all(wd$note == "OK"),
+	all(wd$N_model == wd$N_cases_model + wd$N_controls_model),
+	all(wd$N_cases_model > 0),
+	all(wd$N_controls_model > 0),
+	all(is.finite(wd$PRS_SD_ratio)),
+	all(wd$PRS_SD_ratio > 0),
+	all(is.finite(wd$R2_PGS)),
+	all(is.finite(wd$R2_base)),
+	all(is.finite(wd$R2_full)),
+	all(is.finite(wd$delta_R2)),
+	all(is.finite(wd$LRT_p)),
+	all(wd$LRT_p >= 0 & wd$LRT_p <= 1),
+	all(abs(wd$delta_R2 - (wd$R2_full - wd$R2_base)) < 1e-7),
+	all(wd$delta_R2 >= -1e-7))
+
+# BH adjustment across all 60 exploratory nested-model comparisons.
+# Keep unrounded numerical values until export formatting.
+wd <-
+	wd %>%
+	mutate(
+		delta_R2 = pmax(delta_R2, 0),
+		LRT_q = p.adjust(LRT_p, method = "BH"),
+		SD_ratio_pct = 100 * PRS_SD_ratio,
+		cohort = factor(
+			cohort, levels = cohort_levels,
+			labels = c("All samples", "Males", "Females")),
+		wave = factor(wave, levels = waves),
+		quintile = factor(risk, levels = 1:5, labels = paste0("Q", 1:5))) %>%
+	arrange(cohort, wave, risk)
+
+# --------------------------------------------------
+# Final table
+# --------------------------------------------------
+
+s13 <-
+	wd %>%
+	transmute(
+		cohort,
+		wave,
+		quintile,
+		N = N_model,
+		cases = N_cases_model,
+		SD_ratio_pct,
+		R2_PGS,
+		R2_base,
+		R2_full,
+		delta_R2,
+		LRT_p,
+		LRT_q)
+
+write.csv(s13, "sup_tab13.csv", row.names = FALSE)
+
+note <- paste0(
+	"N and cases refer to the matched complete-case analytical sample. ",
+	"PGS SD ratio (%) = within-model PGS SD / cohort-wide PGS SD × 100. ",
+	"PGS-only model: PC-adjusted PGS; clinical baseline: age at wave + psychiatric ",
+	"family history (+ sex in the full cohort); full model: clinical baseline + PGS. ",
+	"All pseudo-R² values are Nagelkerke estimates expressed as percentages. ",
+	"ΔR² = full minus clinical baseline (percentage points, pp), not a unique ",
+	"variance component. LRT compares the nested baseline and full models. ",
+	"BH q-values are exploratory across 60 comparisons, including overlapping cohorts ",
+	"and repeated waves. All estimates are apparent (in-sample).")
+
+make_table <- function(df) {
+
+	df %>%
+		select(-cohort) %>%
+		flextable() %>%
+		set_header_labels(
+			wave = "Wave",
+			quintile = "PGS quintile",
+			N = "N",
+			cases = "Cases",
+			SD_ratio_pct = "PGS SD ratio (%)",
+			R2_PGS = "PGS only",
+			R2_base = "Clinical baseline",
+			R2_full = "Full",
+			delta_R2 = "ΔR² (pp)",
+			LRT_p = "LRT p",
+			LRT_q = "BH q") %>%
+		add_header_row(
+			values = c("", "Nagelkerke pseudo-R² (%)", ""),
+			colwidths = c(5, 3, 3)) %>%
+		colformat_double(j = "SD_ratio_pct", digits = 2) %>%
+		colformat_double(j = c("R2_PGS", "R2_base", "R2_full"), digits = 3) %>%
+		colformat_double(j = "delta_R2", digits = 4) %>%
+		colformat_double(j = c("LRT_p", "LRT_q"), digits = 4) %>%
+		theme_booktabs() %>%
+		bold(part = "header") %>%
+		align(align = "center", part = "all") %>%
+		fontsize(size = 9, part = "all") %>%
+		padding(padding = 2.5, part = "all") %>%
+		width(j = "wave", width = 0.58) %>%
+		width(j = "quintile", width = 0.72) %>%
+		width(j = c("N", "cases"), width = 0.52) %>%
+		width(j = "SD_ratio_pct", width = 0.92) %>%
+		width(j = c("R2_PGS", "R2_base", "R2_full"), width = 0.90) %>%
+		width(j = "delta_R2", width = 0.83) %>%
+		width(j = c("LRT_p", "LRT_q"), width = 0.76) %>%
+		set_table_properties(layout = "fixed", opts_word = list(split = FALSE))
 }
 
-raw_iid_matched <- map_ext_to_iid(raw_w0_ids)
-dob_iid <- map_ext_to_iid(intersect(
-  raw_w0_ids, ids(dob_info, "ext_genid")))
+# --------------------------------------------------
+# Word export - one cohort per landscape page
+# --------------------------------------------------
+section <-
+	prop_section(
+		page_size = page_size(orient = "landscape", width = 8.27, height = 11.69),
+		page_margins = page_mar(top = 0.55, bottom = 0.55, left = 0.65, right = 0.65))
 
-flow_id_sets <- list(
-  `Raw W0 source records` = raw_w0_ids,
-  `Linked to genetic ID dictionary` = intersect(raw_w0_ids,
-                                                 ids(id_map, "ext_genid")),
-  `Birth date and ID linkage` = intersect(raw_iid_matched, dob_iid),
-  `Longitudinal phenotype + demographics` = intersect(
-    dob_iid, intersect(ids(demographics), ids(longitudinal_wide))),
-  `PRS available / database assembled` = ids(data),
-  `Eligible for phenotype reconstruction` = ids(imputed_pheno),
-  `Present in genetic FAM file` = ids(pca_files_IDs),
-  `PCA eigenvectors available` = intersect(ids(pca_files_IDs), ids(all_pca)),
-  `Final analysis sample` = ids(proband_data)
-)
+out <- read_docx()
+out <- body_set_default_section(out, section)
 
-flow_check_sets <- list(
-  flow_id_sets[[1]],
-  flow_id_sets[[2]],
-  dob_iid,
-  intersect(dob_iid, flow_id_sets[[4]]),
-  intersect(intersect(dob_iid, flow_id_sets[[4]]), ids(data)),
-  intersect(intersect(intersect(dob_iid, flow_id_sets[[4]]), ids(data)),
-            ids(imputed_pheno)),
-  NULL,
-  NULL,
-  NULL
-)
+for (i in seq_along(levels(s13$cohort))) {
 
-flow_check_sets[[7]] <- intersect(flow_check_sets[[6]], ids(pca_files_IDs))
-flow_check_sets[[8]] <- intersect(flow_check_sets[[7]], ids(all_pca))
-flow_check_sets[[9]] <- intersect(flow_check_sets[[8]], ids(proband_data))
+	cohort_name <- levels(s13$cohort)[i]
+	if (i > 1) out <- body_add_break(out)
 
-for (i in 4:length(flow_check_sets)) {
-  if (!all(flow_check_sets[[i]] %in% flow_check_sets[[i - 1]])) {
-    stop("Non-nested sample sets at flow step ", i)
-  }
-}
-if (length(flow_check_sets[[3]]) > length(flow_check_sets[[2]])) {
-  stop("DOB/IID linkage unexpectedly increases participant count")
+	out <- body_add_fpar(
+		out,
+		fpar(ftext(
+			paste0("Supplementary Table S13. Model fit across PGS quintiles (", cohort_name, ")"),
+			fp_text(bold = TRUE, font.size = 11))))
+
+	out <- body_add_flextable(out, make_table(filter(s13, cohort == cohort_name)))
+	out <- body_add_fpar(out, fpar(ftext(note, fp_text(font.size = 8))))
 }
 
-flow_labels <- names(flow_id_sets)
-flow_n <- vapply(flow_check_sets, length, integer(1))
-flow <- tibble(
-  step_order = seq_along(flow_n),
-  step = flow_labels,
-  N_before = c(NA_integer_, head(flow_n, -1)),
-  N_excluded = c(NA_integer_, head(flow_n, -1) - tail(flow_n, -1)),
-  N_remaining = flow_n
-)
+print(out, target = "sup_tab13.docx")
 
-checks <- tibble(
-  object = c("data", "imputed_pheno", "pca_files_IDs", "proband_data"),
-  N_object = c(length(ids(data)), length(ids(imputed_pheno)),
-               length(ids(pca_files_IDs)), length(ids(proband_data))),
-  N_in_sequential_audit = flow_n[c(5, 6, 7, 9)]
-) %>% mutate(matches = N_object == N_in_sequential_audit)
-if (any(!checks$matches)) {
-  warning("Some existing objects contain IDs outside the traced baseline cohort; ",
-          "inspect S13_object_checks.csv before using Figure 1C.")
-}
-
-genetic_qc_reference <- tibble(
-  metric = c("Genotyped samples before QC (manuscript)",
-             "Genotyped samples after QC (manuscript)",
-             "Genotyped samples excluded by QC (manuscript)"),
-  N = c(2511L, 2190L, 321L),
-  source = "Current manuscript Methods, Section 2.1; not audited by IID here"
-)
-
-# -------------------------------------------------------------------------
-# 3. Original longitudinal ADHD status and eligibility groups
-# -------------------------------------------------------------------------
-pre <- data %>%
-  transmute(IID = as.character(IID),
-            across(all_of(waves), ~ as.character(.x)))
-
-status_mat <- as.matrix(pre[, waves])
-first_idx <- apply(status_mat, 1, function(x) {
-  p <- which(x == "2")
-  if (length(p)) p[1] else NA_integer_
-})
-all_control <- apply(status_mat, 1, function(x) all(!is.na(x) & x == "0"))
-
-eligibility <- tibble(
-  IID = pre$IID,
-  first_case_idx = first_idx,
-  participant_group = ifelse(
-    !is.na(first_idx), paste0("First ADHD case at ", waves[first_idx]),
-    ifelse(all_control, "Control at all four waves",
-           "Excluded: not diagnosed and not all-wave control")),
-  selected_by_rule = !is.na(first_idx) | all_control,
-  present_in_imputed_pheno = pre$IID %in% ids(imputed_pheno),
-  present_in_final = pre$IID %in% ids(proband_data)
-)
-
-if (!identical(eligibility$selected_by_rule,
-               eligibility$present_in_imputed_pheno)) {
-  stop("Actual imputed_pheno participants do not match the stated phenotype rules. ",
-       "Review the main preprocessing script before reporting S13.")
-}
-
-group_levels <- c(paste0("First ADHD case at ", waves),
-                  "Control at all four waves",
-                  "Excluded: not diagnosed and not all-wave control")
-
-group_counts <- eligibility %>%
-  mutate(participant_group = factor(participant_group, levels = group_levels)) %>%
-  group_by(participant_group, .drop = FALSE) %>%
-  summarise(
-    N_before_reconstruction = n(),
-    N_retained_after_reconstruction = sum(present_in_imputed_pheno),
-    N_in_final_analytic_sample = sum(present_in_final),
-    .groups = "drop"
-  ) %>%
-  mutate(participant_group = as.character(participant_group))
-
-stopifnot(sum(group_counts$N_before_reconstruction) == nrow(pre))
-stopifnot(sum(group_counts$N_retained_after_reconstruction) == nrow(imputed_pheno))
-stopifnot(sum(group_counts$N_in_final_analytic_sample) == nrow(proband_data))
-
-# -------------------------------------------------------------------------
-# 4. Per-wave phenotype changes: compare EXACT SAME retained individuals
-# -------------------------------------------------------------------------
-
-post <- imputed_pheno %>%
-  transmute(IID = as.character(IID),
-            across(all_of(waves), ~ as.character(.x)))
-
-case_first_post <- eligibility$first_case_idx[match(post$IID, eligibility$IID)]
-for (j in seq_along(waves)) {
-  expected <- ifelse(!is.na(case_first_post) & case_first_post <= j,
-                     "2", "0")
-  actual <- post[[waves[j]]]
-  if (!identical(as.character(expected), as.character(actual))) {
-    stop("Reconstructed statuses differ from the original rule at ", waves[j],
-         ". Reinspect the main imputation code.")
-  }
-}
-
-change_wide <- pre %>%
-  semi_join(post, by = "IID") %>%
-  left_join(post, by = "IID", suffix = c("_observed", "_reconstructed")) %>%
-  left_join(eligibility %>% select(IID, first_case_idx), by = "IID")
-
-pheno_long <- purrr::map_dfr(seq_along(waves), function(j) {
-  w <- waves[j]
-  observed <- change_wide[[paste0(w, "_observed")]]
-  reconstructed <- change_wide[[paste0(w, "_reconstructed")]]
-  tibble(
-    IID = change_wide$IID,
-    wave = w,
-    wave_index = j,
-    observed = observed,
-    reconstructed = reconstructed,
-    first_case_idx = change_wide$first_case_idx,
-    original_class = case_when(
-      observed == "2" ~ "Case (observed)",
-      observed == "0" ~ "Control (observed)",
-      observed == "1" ~ "Uncertain (observed)",
-      TRUE ~ "Missing/other (observed)"),
-    reconstructed_class = case_when(
-      reconstructed == "2" ~ "Case (reconstructed)",
-      reconstructed == "0" ~ "Control (reconstructed)",
-      TRUE ~ "Unexpected status"),
-    # A change from NA is counted as a reconstruction, not an observation.
-    status_changed = is.na(observed) | observed != reconstructed,
-    carried_forward_case = !is.na(first_case_idx) &
-      wave_index > first_case_idx & reconstructed == "2" &
-      (is.na(observed) | observed != "2")
-  )
-})
-
-if (any(!pheno_long$reconstructed %in% c("0", "2"))) {
-  stop("Post-reconstruction ADHD contains an unexpected value")
-}
-
-phenotype_by_wave <- pheno_long %>%
-  group_by(wave) %>%
-  summarise(
-    N_retained = n_distinct(IID),
-    N_observed_case = sum(observed == "2", na.rm = TRUE),
-    N_observed_control = sum(observed == "0", na.rm = TRUE),
-    N_observed_uncertain = sum(observed == "1", na.rm = TRUE),
-    N_observed_missing_other = sum(is.na(observed) | !observed %in% c("0", "1", "2")),
-    N_reconstructed_case = sum(reconstructed == "2"),
-    N_reconstructed_control = sum(reconstructed == "0"),
-    N_status_changed = sum(status_changed),
-    N_case_carried_forward = sum(carried_forward_case),
-    N_observed_control_to_case = sum(observed == "0" & reconstructed == "2", na.rm = TRUE),
-    N_uncertain_missing_to_case = sum(
-      (is.na(observed) | !observed %in% c("0", "2")) &
-      reconstructed == "2"),
-    N_uncertain_missing_to_control = sum(
-      (is.na(observed) | !observed %in% c("0", "2")) &
-      reconstructed == "0"),
-    .groups = "drop"
-  ) %>%
-  arrange(match(wave, waves))
-
-if (any(phenotype_by_wave$N_reconstructed_case +
-        phenotype_by_wave$N_reconstructed_control != phenotype_by_wave$N_retained)) {
-  stop("Post-reconstruction case/control counts do not equal retained N")
-}
-if (any(phenotype_by_wave$N_status_changed !=
-        (phenotype_by_wave$N_observed_control_to_case +
-         phenotype_by_wave$N_uncertain_missing_to_case +
-         phenotype_by_wave$N_uncertain_missing_to_control))) {
-  stop("Diagnosis transition counts do not reconcile with changed statuses")
-}
-
-# Optional diagnosis counts in the FINAL filtered cohort, which uses W3=1.
-final_case_counts <- purrr::map_dfr(waves, function(w) {
-  code <- as.character(proband_data[[w]])
-  case_code <- if (w == "W3") "1" else "2"
-  tibble(wave = w,
-         N_final = length(code),
-         N_cases_final = sum(code == case_code, na.rm = TRUE),
-         N_controls_final = sum(code == "0", na.rm = TRUE))
-})
-phenotype_by_wave <- phenotype_by_wave %>%
-  left_join(final_case_counts, by = "wave")
-
-# More granular transition table for reviewer reproducibility.
-transition_counts <- pheno_long %>%
-  count(wave, original_class, reconstructed_class, name = "N") %>%
-  arrange(match(wave, waves), original_class, reconstructed_class)
-
-# -------------------------------------------------------------------------
-# 5. Age reconstruction: date derived vs observed vs baseline offsets
-# -------------------------------------------------------------------------
-age_by_wave <- purrr::map_dfr(waves, function(w) {
-  old_age <- suppressWarnings(as.numeric(as.character(data[[paste0("age_", w)]])))
-  new_age_value <- suppressWarnings(as.numeric(
-    as.character(new_age[[paste0("age_", w)]])))
-  ids_data <- as.character(data$IID)
-  ids_new <- as.character(new_age$IID)
-  new_age_value <- new_age_value[match(ids_data, ids_new)]
-  selected <- ids_data %in% ids(imputed_pheno)
-
-  if (w == "W0") {
-    source <- ifelse(!is.na(old_age), "Observed age", "Unavailable")
-  } else {
-    dates <- data[[paste0("p_psico_date1_", w)]]
-    dob <- data[["birth_date"]]
-    # Both variables should already be Date-class values in main preprocessing.
-    age_calc <- as.numeric(difftime(as.Date(dates), as.Date(dob),
-                                    units = "days")) / 365.25
-    baseline <- suppressWarnings(as.numeric(as.character(data[["age_W0"]])))
-    offset <- c(W1 = 3, W2 = 8, W3 = 12)[[w]]
-    source <- case_when(
-      !is.na(age_calc) ~ "Assessment-date derived",
-      !is.na(old_age) ~ "Observed age",
-      !is.na(baseline + offset) ~ "Baseline offset",
-      TRUE ~ "Unavailable"
-    )
-  }
-
-  tibble(IID = ids_data, wave = w, selected = selected,
-         age_before = old_age, age_after = new_age_value,
-         age_source = source)
-})
-
-age_summary <- age_by_wave %>%
-  filter(selected) %>%
-  group_by(wave) %>%
-  summarise(
-    N_participants = n(),
-    N_age_originally_available = sum(!is.na(age_before)),
-    N_age_after = sum(!is.na(age_after)),
-    N_date_derived = sum(age_source == "Assessment-date derived"),
-    N_original_age_used = sum(age_source == "Observed age"),
-    N_baseline_offset_used = sum(age_source == "Baseline offset"),
-    N_newly_filled_age = sum(is.na(age_before) & !is.na(age_after)),
-    N_still_missing_age = sum(is.na(age_after)),
-    .groups = "drop"
-  ) %>%
-  arrange(match(wave, waves))
-
-if (any(age_summary$N_date_derived + age_summary$N_original_age_used +
-        age_summary$N_baseline_offset_used + age_summary$N_still_missing_age !=
-        age_summary$N_participants)) {
-  warning("Age-source categories do not sum to the retained participant count")
-}
-
-# -------------------------------------------------------------------------
-# 6. Print and export S13 + Figure 1C audit data
-# -------------------------------------------------------------------------
-
-cat("\n=== S13 A: Sequential participant filtering ===\n")
-print(flow, n = Inf, width = Inf)
-cat("\n=== S13 B: Phenotype selection groups ===\n")
-print(group_counts, n = Inf, width = Inf)
-cat("\n=== S13 C: Observed vs reconstructed ADHD by wave ===\n")
-print(phenotype_by_wave, n = Inf, width = Inf)
-cat("\n=== S13 D: Age data reconstruction ===\n")
-print(age_summary, n = Inf, width = Inf)
-cat("\n=== Source-to-final-object consistency ===\n")
-print(checks, n = Inf, width = Inf)
-
-stopifnot(nrow(proband_data) == flow$N_remaining[nrow(flow)])
-if (nrow(proband_data) != 1463L) {
-  warning("Final N is ", nrow(proband_data),
-          ", not 1,463. Examine your current preprocessing inputs.")
-}
-
-write.csv(flow, file.path(output_dir, "S13_A_participant_filtering.csv"), row.names = FALSE)
-write.csv(group_counts, file.path(output_dir, "S13_B_phenotype_eligibility.csv"), row.names = FALSE)
-write.csv(phenotype_by_wave, file.path(output_dir, "S13_C_diagnosis_by_wave.csv"), row.names = FALSE)
-write.csv(transition_counts, file.path(output_dir, "S13_C_detailed_transitions.csv"), row.names = FALSE)
-write.csv(age_summary, file.path(output_dir, "S13_D_age_reconstruction.csv"), row.names = FALSE)
-write.csv(checks, file.path(output_dir, "S13_object_checks.csv"), row.names = FALSE)
-write.csv(genetic_qc_reference,
-          file.path(output_dir, "S13_genetic_QC_manuscript_reference.csv"),
-          row.names = FALSE)
-
-# -------------------------------------------------------------------------
-# 7. Figure 1C flowchart (generated ONLY from the audited participant flow)
-# -------------------------------------------------------------------------
-
-figure1c_data <- flow %>%
-  mutate(label = paste0(step, "\nN = ", format(N_remaining, big.mark = ",")),
-         exclusion_label = ifelse(is.na(N_excluded), "",
-                                  paste0("−", N_excluded, " excluded")),
-         y = rev(seq_len(n())))
-
-write.csv(figure1c_data,
-          file.path(output_dir, "Figure1C_audited_nodes.csv"), row.names = FALSE)
-
-p_flow <- ggplot(figure1c_data, aes(x = 0, y = y)) +
-  geom_rect(aes(xmin = -2.2, xmax = 2.2, ymin = y - .32, ymax = y + .32),
-            fill = "#F0F4F5", color = "#233B43", linewidth = .5) +
-  geom_segment(data = head(figure1c_data, -1),
-               aes(x = 0, xend = 0, y = y - .33, yend = y - .67),
-               inherit.aes = FALSE,
-               arrow = grid::arrow(length = grid::unit(.12, "inches")),
-               linewidth = .45, color = "#828282") +
-  geom_text(aes(label = label), size = 3.5, lineheight = .95) +
-  geom_text(aes(x = 2.4, y = y + .52, label = exclusion_label),
-            hjust = 0, color = "#555555", size = 3) +
-  coord_cartesian(xlim = c(-2.5, 5.2), clip = "off") +
-  scale_y_continuous(breaks = NULL) +
-  theme_void(base_size = 11) +
-  labs(caption = paste(
-    "Unique-participant flow from the 2026 phenotype source.",
-    "Genetic QC in the manuscript (2,511 to 2,190) is reported separately;",
-    "no participant-level pre/post QC linkage was available for this audit.")) +
-  theme(plot.caption = element_text(size = 8, hjust = 0, color = "#555555"),
-        plot.margin = margin(15, 25, 15, 15))
-
-ggsave(file.path(output_dir, "Figure1C_selection_flow.pdf"),
-       p_flow, width = 10, height = 10.5)
-ggsave(file.path(output_dir, "Figure1C_selection_flow.png"),
-       p_flow, width = 10, height = 10.5, dpi = 300)
-
-# -------------------------------------------------------------------------
-# 8. SINGLE publication-style Supplementary Table S13 (sections A-D)
-# -------------------------------------------------------------------------
-fmt_s13_n <- function(x) {
-  ifelse(is.na(x), "—", format(as.integer(x), big.mark = ",", trim = TRUE))
-}
-
-s13_section <- function(title) {
-  tibble(Characteristic = title, Overall = "", W0 = "", W1 = "",
-         W2 = "", W3 = "", .section = TRUE)
-}
-
-s13_overall <- function(label, text) {
-  tibble(Characteristic = label, Overall = text, W0 = "", W1 = "",
-         W2 = "", W3 = "", .section = FALSE)
-}
-
-s13_wave <- function(label, source, field) {
-  stopifnot(field %in% names(source), "wave" %in% names(source))
-  if (anyDuplicated(source$wave) || !all(waves %in% source$wave)) {
-    stop("S13 source must contain exactly one row per wave for: ", label)
-  }
-  vals <- fmt_s13_n(source[[field]][match(waves, source$wave)])
-  tibble(Characteristic = label, Overall = "", W0 = vals[1],
-         W1 = vals[2], W2 = vals[3], W3 = vals[4], .section = FALSE)
-}
-
-# A: each arrow is before -> retained, with the number excluded in parentheses.
-s13_A <- purrr::map_dfr(seq_len(nrow(flow)), function(i) {
-  value <- if (is.na(flow$N_before[i])) {
-    fmt_s13_n(flow$N_remaining[i])
-  } else {
-    paste0(fmt_s13_n(flow$N_before[i]), " → ",
-           fmt_s13_n(flow$N_remaining[i]),
-           " (−", fmt_s13_n(flow$N_excluded[i]), ")")
-  }
-  s13_overall(flow$step[i], value)
-})
-
-# B: each cell represents BEFORE / RETAINED AFTER RECONSTRUCTION / IN FINAL.
-s13_B <- purrr::map_dfr(seq_len(nrow(group_counts)), function(i) {
-  s13_overall(group_counts$participant_group[i], paste0(
-    fmt_s13_n(group_counts$N_before_reconstruction[i]), " / ",
-    fmt_s13_n(group_counts$N_retained_after_reconstruction[i]), " / ",
-    fmt_s13_n(group_counts$N_in_final_analytic_sample[i])))
-})
-
-# C: all diagnosis summary variables, explicitly labeled by assessment wave.
-s13_C_fields <- c(
-  "Participants retained for phenotype reconstruction" = "N_retained",
-  "Observed ADHD cases" = "N_observed_case",
-  "Observed controls" = "N_observed_control",
-  "Observed uncertain ADHD status" = "N_observed_uncertain",
-  "Observed missing/other ADHD status" = "N_observed_missing_other",
-  "ADHD cases after reconstruction" = "N_reconstructed_case",
-  "Controls after reconstruction" = "N_reconstructed_control",
-  "ADHD statuses changed" = "N_status_changed",
-  "Cases carried forward from earlier waves" = "N_case_carried_forward",
-  "Observed controls reclassified as cases" = "N_observed_control_to_case",
-  "Uncertain/missing status assigned as cases" = "N_uncertain_missing_to_case",
-  "Uncertain/missing status assigned as controls" = "N_uncertain_missing_to_control",
-  "Participants in final analytical cohort" = "N_final",
-  "ADHD cases in final analytical cohort" = "N_cases_final",
-  "Controls in final analytical cohort" = "N_controls_final"
-)
-s13_C <- purrr::map2_dfr(names(s13_C_fields), unname(s13_C_fields),
-                         ~ s13_wave(.x, phenotype_by_wave, .y))
-
-# D: all eight age-source and completeness measures.
-s13_D_fields <- c(
-  "Participants retained for age reconstruction" = "N_participants",
-  "Ages originally available" = "N_age_originally_available",
-  "Ages available after reconstruction" = "N_age_after",
-  "Ages derived from assessment dates" = "N_date_derived",
-  "Original age values used" = "N_original_age_used",
-  "Ages estimated from baseline offsets" = "N_baseline_offset_used",
-  "Previously missing ages newly filled" = "N_newly_filled_age",
-  "Ages still missing" = "N_still_missing_age"
-)
-s13_D <- purrr::map2_dfr(names(s13_D_fields), unname(s13_D_fields),
-                         ~ s13_wave(.x, age_summary, .y))
-
-s13_combined <- dplyr::bind_rows(
-  s13_section("A. Participant inclusion and exclusions"), s13_A,
-  s13_section("B. Longitudinal phenotype eligibility"), s13_B,
-  s13_section("C. Observed and reconstructed ADHD status"), s13_C,
-  s13_section("D. Age reconstruction"), s13_D
-)
-
-cat("\n=== Supplementary Table S13 - Combined ===\n")
-print(dplyr::select(s13_combined, -.section), n = Inf, width = Inf)
-write.csv(dplyr::select(s13_combined, -.section),
-          file.path(output_dir, "S13_combined.csv"), row.names = FALSE,
-          na = "")
-
-# -------------------------------------------------------------------------
-# 9. SINGLE native Word table (replaces the former four-subtable DOCX)
-# -------------------------------------------------------------------------
-
-if (requireNamespace("flextable", quietly = TRUE) &&
-    requireNamespace("officer", quietly = TRUE)) {
-
-  section_rows <- which(s13_combined$.section)
-  ft <- flextable::flextable(dplyr::select(s13_combined, -.section))
-  ft <- flextable::theme_booktabs(ft)
-  ft <- flextable::font(ft, fontname = "Arial", part = "all")
-  ft <- flextable::fontsize(ft, size = 8.5, part = "all")
-  ft <- flextable::fontsize(ft, size = 9, part = "header")
-  ft <- flextable::bold(ft, part = "header")
-  ft <- flextable::padding(ft, padding = 3, part = "all")
-  ft <- flextable::align(ft, j = "Characteristic", align = "left", part = "all")
-  ft <- flextable::align(ft, j = c("Overall", waves),
-                         align = "center", part = "all")
-  ft <- flextable::valign(ft, valign = "center", part = "all")
-
-  # Make the section labels full-width rows inside the SAME table.
-  for (i in section_rows) {
-    ft <- flextable::merge_at(ft, i = i, j = 1:6, part = "body")
-    ft <- flextable::bold(ft, i = i, bold = TRUE, part = "body")
-    ft <- flextable::hline_top(
-      ft, i = i, border = officer::fp_border(color = "666666", width = 0.7),
-      part = "body")
-  }
-  ft <- flextable::set_table_properties(
-    ft, layout = "fixed", opts_word = list(repeat_headers = TRUE)
-  )
-  ft <- flextable::width(ft, j = "Characteristic", width = 3.3)
-  ft <- flextable::width(ft, j = "Overall", width = 2.5)
-  ft <- flextable::width(ft, j = waves, width = 0.96)
-  ft <- flextable::set_header_labels(
-    ft, Characteristic = "Characteristic / processing step", Overall = "Overall")
-
-  doc <- officer::read_docx()
-  doc <- officer::body_add_par(doc, "Supplementary Table S13",
-                               style = "heading 1")
-  doc <- officer::body_add_par(
-    doc,
-    "Participant filtering, longitudinal ADHD phenotype reconstruction, and age estimation",
-    style = "Normal")
-  doc <- flextable::body_add_flextable(doc, ft)
-  doc <- officer::body_add_par(doc,
-    paste(
-      "Notes. A: before → remaining (excluded) at each consecutive step;",
-      "the first row gives the starting N. B: before reconstruction / retained",
-      "after reconstruction / present in the final analytical cohort. C and D",
-      "refer to the same retained participants before final genetic/PCA filtering",
-      "unless explicitly labeled 'final analytical cohort'. Observed ADHD",
-      "diagnoses are distinct from reconstructed phenotypes. Case status persists",
-      "after the first observed positive wave; eligible controls require four",
-      "observed negative waves. Ages derived from dates or follow-up offsets are",
-      "not new participant assessments. Published genetic QC: 2,511 before QC,",
-      "2,190 after QC (321 excluded); these historical totals were not part of",
-      "the participant-ID-level filtering audit."),
-    style = "Normal"
-  )
-  doc <- officer::body_set_default_section(
-    doc,
-    officer::prop_section(
-      page_size = officer::page_size(orient = "landscape"),
-      page_margins = officer::page_mar(top = 0.65, bottom = 0.65,
-                                     left = 0.65, right = 0.65)
-    )
-  )
-  print(doc, target = file.path(output_dir, "sup_tab13.docx"))
-  message("One-table Word document exported: ",
-          file.path(output_dir, "sup_tab13.docx"))
-} else {
-  message("Word export skipped: install.packages(c('flextable','officer'))")
-}
-
-cat("\nOutputs saved in: ", normalizePath(output_dir), "\n", sep = "")
+# Optional console check for the main Figure 5 peak.
+print(filter(s13, cohort == "Males", wave == "W0", quintile == "Q5"))
